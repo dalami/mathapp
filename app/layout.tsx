@@ -7,7 +7,6 @@ import PWARegister from "../components/PWARegister";
 const nunito = Nunito({
   subsets: ["latin"],
   weight: ["400", "700", "800", "900"],
-  variable: "--font-nunito",
 });
 
 export const metadata: Metadata = {
@@ -32,13 +31,17 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="es" className={nunito.variable}>
-      <body style={{ fontFamily: "var(--font-nunito), system-ui, sans-serif" }}>
+    <html lang="es">
+      <body className={nunito.className}>
         <AuthProvider>
           {children}
-           <PWARegister />
+          <PWARegister />
         </AuthProvider>
       </body>
     </html>

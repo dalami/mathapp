@@ -95,7 +95,6 @@ const ISLAND_THEMES: Record<
     label: "#eceff1",
   },
 };
-
 const SNAKE_X = [72, 50, 28, 50, 72, 50, 28, 50, 72, 50];
 const NODE_H = 100;
 const HDR_H = 72;
@@ -112,13 +111,7 @@ const STARS_BG = Array.from({ length: 30 }).map(() => ({
 
 export default function MapaPage() {
   const router = useRouter();
-  const {
-    profile,
-    user,
-    loading: authLoading,
-    signOut,
-    refreshProfile,
-  } = useAuth();
+  const { profile, user, loading: authLoading, signOut, refreshProfile } = useAuth();
 
   const [islands, setIslands] = useState<Island[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
@@ -128,7 +121,6 @@ export default function MapaPage() {
   const [savingAvatar, setSavingAvatar] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
 
-  // ─── Fetch datos ───────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     if (!profile) return;
@@ -136,58 +128,32 @@ export default function MapaPage() {
 
     async function fetchData() {
       setLoading(true);
-
-      // Si no tiene stage elegido → ir a selección de etapa
-      if (!profile?.stage) {
-        router.replace("/etapa");
-        return;
-      }
+      if (!profile?.stage) { router.replace("/etapa"); return; }
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
-        supabase
-          .from("islands")
-          .select("id,name,icon,order_index")
-          .eq("stage", profile.stage)
-          .order("order_index"),
-        supabase
-          .from("levels")
-          .select(
-            "id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires",
-          )
-          .order("island_id")
-          .order("order_index"),
-        supabase
-          .from("user_progress")
-          .select("level_id,stars")
-          .eq("user_id", user!.id),
+        supabase.from("islands").select("id,name,icon,order_index").eq("stage", profile.stage).order("order_index"),
+        supabase.from("levels").select("id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires").order("island_id").order("order_index"),
+        supabase.from("user_progress").select("level_id,stars").eq("user_id", user!.id),
       ]);
 
       if (cancelled) return;
 
       const progressMap = new Map<string, number>(
-        ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
-          p.level_id,
-          p.stars,
-        ]),
+        ((progressRes.data ?? []) as ProgressRow[]).map((p) => [p.level_id, p.stars])
       );
 
       let foundCurrent = false;
-      const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map(
-        (lvl) => {
-          const stars = progressMap.get(lvl.id) ?? 0;
-          let status: Level["status"] = "locked";
-          if (stars > 0) {
-            status = "completed";
-          } else if (
-            !foundCurrent &&
-            (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))
-          ) {
-            status = "current";
-            foundCurrent = true;
-          }
-          return { ...lvl, stars, status };
-        },
-      );
+      const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map((lvl) => {
+        const stars = progressMap.get(lvl.id) ?? 0;
+        let status: Level["status"] = "locked";
+        if (stars > 0) {
+          status = "completed";
+        } else if (!foundCurrent && (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))) {
+          status = "current";
+          foundCurrent = true;
+        }
+        return { ...lvl, stars, status };
+      });
 
       if (!foundCurrent) {
         const first = processed.find((l) => l.status === "locked");
@@ -200,24 +166,17 @@ export default function MapaPage() {
     }
 
     fetchData();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user, profile, router]);
 
-  // ─── Scroll al inicio ──────────────────────────────────────
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
   }, [loading]);
 
-  // ─── Cambiar avatar ────────────────────────────────────────
   async function handleAvatarSelect(idx: number) {
     if (!user) return;
     setSavingAvatar(true);
-    await supabase
-      .from("profiles")
-      .update({ avatar_id: idx + 1 })
-      .eq("id", user.id);
+    await supabase.from("profiles").update({ avatar_id: idx + 1 }).eq("id", user.id);
     await refreshProfile();
     setSavingAvatar(false);
     setShowAvatars(false);
@@ -226,9 +185,7 @@ export default function MapaPage() {
   if (authLoading || loading) return <LoadingScreen />;
 
   const levelsByIsland = islands.map((island) =>
-    levels
-      .filter((l) => l.island_id === island.id)
-      .sort((a, b) => a.order_index - b.order_index),
+    levels.filter((l) => l.island_id === island.id).sort((a, b) => a.order_index - b.order_index)
   );
   const totalStars = levels.reduce((s, l) => s + l.stars, 0);
   const completedCount = levels.filter((l) => l.status === "completed").length;
@@ -237,61 +194,53 @@ export default function MapaPage() {
 
   return (
     <>
-      <style>{CSS}</style>
-
-      <div className="bg-stars" aria-hidden="true">
+      {/* ── ESTRELLAS DE FONDO ── */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#0a0a0f]" aria-hidden="true">
         {STARS_BG.map((s, i) => (
           <span
             key={i}
-            className="star-dot"
+            className="absolute rounded-full bg-white/75 animate-[twinkle_ease-in-out_infinite_alternate]"
             style={{
-              left: s.left,
-              top: s.top,
-              animationDelay: s.delay,
-              animationDuration: s.duration,
-              width: s.size,
-              height: s.size,
+              left: s.left, top: s.top,
+              animationDelay: s.delay, animationDuration: s.duration,
+              width: s.size, height: s.size,
             }}
           />
         ))}
       </div>
 
-      <div className="mapa-root" ref={topRef}>
+      <div className="relative z-10 min-h-dvh font-[Nunito,sans-serif] text-white flex flex-col items-center max-w-130 mx-auto" ref={topRef}>
+
         {/* ── TOP BAR ── */}
-        <header className="topbar">
-          <div className="topbar-left">
+        <header className="sticky top-0 z-50 w-full px-4 py-2.5 bg-[rgba(10,10,15,0.97)] border-b border-white/[0.07] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
             <button
-              className="avatar-btn"
+              className="w-10 h-10 rounded-full shrink-0 bg-linear-to-br from-[#2a1a4a] to-[#1a2a4a] border-2 border-white/20 text-[1.4rem] cursor-pointer flex items-center justify-center transition-transform duration-150 hover:scale-[1.08] hover:border-white/40"
               onClick={() => setShowAvatars((v) => !v)}
               title="Cambiar avatar"
             >
               {avatarEmoji}
             </button>
             <div>
-              <div className="profile-name">
+              <div className="text-sm font-extrabold text-white leading-tight">
                 {profile?.display_name ?? "Jugador"}
               </div>
-              <div className="profile-sub">
+              <div className="text-[0.68rem] text-white/40 font-bold">
                 {completedCount}/{totalLevels} niveles · ⭐ {totalStars}
               </div>
             </div>
           </div>
-          <div className="topbar-right">
-            <div className="stat-pill">
-              🔥
-              <span style={{ color: "#FF6B35" }}>
-                {profile?.streak_days ?? 0}
-              </span>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 text-xs font-extrabold text-white">
+              🔥<span className="text-[#FF6B35]">{profile?.streak_days ?? 0}</span>
             </div>
-            <div className="stat-pill">
-              🪙<span style={{ color: "#FFD700" }}>{profile?.coins ?? 0}</span>
+            <div className="flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 text-xs font-extrabold text-white">
+              🪙<span className="text-[#FFD700]">{profile?.coins ?? 0}</span>
             </div>
-            <LivesPill
-              lives={profile?.lives ?? 5}
-              livesResetAt={profile?.lives_reset_at ?? null}
-            />
+            <LivesPill lives={profile?.lives ?? 5} livesResetAt={profile?.lives_reset_at ?? null} />
             <button
-              className="menu-btn"
+              className="w-8 h-8 rounded-full bg-white/8 border border-white/12 text-white/70 text-lg cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-white/15 tracking-[-1px]"
               onClick={() => setShowMenu((v) => !v)}
               aria-label="Menú"
             >
@@ -302,33 +251,24 @@ export default function MapaPage() {
 
         {/* ── DROPDOWN MENÚ ── */}
         {showMenu && (
-          <div className="dropdown-menu">
+          <div className="fixed top-16 right-[max(16px,calc(50vw-244px))] z-9999 bg-[#1a1a25] border border-white/12 rounded-2xl p-1.5 min-w-47.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] animate-[fadeIn_0.15s_ease]">
             <button
-              className="dropdown-item"
-              onClick={() => {
-                setShowAvatars(true);
-                setShowMenu(false);
-              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-white/85 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-white/8"
+              onClick={() => { setShowAvatars(true); setShowMenu(false); }}
             >
               🎭 Cambiar avatar
             </button>
-            <div className="dropdown-divider" />
+            <div className="h-px bg-white/8 my-1" />
             <button
-              className="dropdown-item"
-              onClick={() => {
-                setShowMenu(false);
-                router.push("/etapa");
-              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-white/85 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-white/8"
+              onClick={() => { setShowMenu(false); router.push("/etapa"); }}
             >
               🌍 Cambiar etapa
             </button>
-            <div className="dropdown-divider" />
+            <div className="h-px bg-white/8 my-1" />
             <button
-              className="dropdown-item danger"
-              onClick={async () => {
-                await signOut();
-                router.replace("/auth");
-              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-[#ef9a9a] font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-[rgba(239,83,80,0.12)]"
+              onClick={async () => { await signOut(); router.replace("/auth"); }}
             >
               🚪 Cerrar sesión
             </button>
@@ -337,14 +277,24 @@ export default function MapaPage() {
 
         {/* ── SELECTOR DE AVATARES ── */}
         {showAvatars && (
-          <div className="avatar-overlay" onClick={() => setShowAvatars(false)}>
-            <div className="avatar-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="avatar-modal-title">Elegí tu avatar</div>
-              <div className="avatar-grid">
+          <div
+            className="fixed inset-0 z-300 bg-black/75 backdrop-blur-[10px] flex items-center justify-center animate-[fadeIn_0.2s_ease]"
+            onClick={() => setShowAvatars(false)}
+          >
+            <div
+              className="bg-[#1a1a25] border border-white/12 rounded-3xl p-7 flex flex-col items-center gap-5 w-[min(340px,90vw)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="font-[FredokaOne,sans-serif] text-xl text-white">Elegí tu avatar</div>
+              <div className="grid grid-cols-3 gap-3 w-full">
                 {AVATARS.map((av, i) => (
                   <button
                     key={i}
-                    className={`avatar-option ${profile?.avatar_id === i + 1 ? "selected" : ""}`}
+                    className={`aspect-square rounded-2xl border-2 text-4xl cursor-pointer flex items-center justify-center transition-all duration-150 disabled:opacity-50 disabled:cursor-wait hover:bg-white/12 ${
+                      profile?.avatar_id === i + 1
+                        ? "border-[#FFD700] bg-[rgba(255,215,0,0.12)] shadow-[0_0_16px_rgba(255,215,0,0.3)]"
+                        : "border-white/10 bg-white/6"
+                    }`}
                     onClick={() => handleAvatarSelect(i)}
                     disabled={savingAvatar}
                   >
@@ -353,7 +303,7 @@ export default function MapaPage() {
                 ))}
               </div>
               <button
-                className="avatar-close"
+                className="w-full py-3 rounded-xl border border-white/12 bg-white/6 text-white/60 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer transition-colors duration-150 hover:bg-white/10"
                 onClick={() => setShowAvatars(false)}
               >
                 Cancelar
@@ -363,13 +313,11 @@ export default function MapaPage() {
         )}
 
         {/* ── MAPA ── */}
-        <main className="mapa-scroll">
+        <main className="w-full pt-3 pb-20 flex flex-col">
           {islands.map((island, islandIdx) => {
             const theme = ISLAND_THEMES[island.order_index] ?? ISLAND_THEMES[1];
             const islandLevels = levelsByIsland[islandIdx] ?? [];
-            const completed = islandLevels.filter(
-              (l) => l.status === "completed",
-            ).length;
+            const completed = islandLevels.filter((l) => l.status === "completed").length;
             const blockH = HDR_H + islandLevels.length * NODE_H + PAD * 2;
             const coords = islandLevels.map((_, i) => ({
               x: SNAKE_X[i % SNAKE_X.length],
@@ -377,36 +325,33 @@ export default function MapaPage() {
             }));
 
             return (
-              <div key={island.id} className="island-block">
+              <div key={island.id} className="w-full">
                 {islandIdx > 0 && (
-                  <div className="island-sep">
-                    <div className="sep-line" />
-                    <span className="sep-arrow">▲</span>
-                    <div className="sep-line" />
+                  <div className="flex items-center gap-2.5 px-7 py-1.5 opacity-25">
+                    <div className="flex-1 h-px bg-white/20" />
+                    <span className="text-xs text-white/50">▲</span>
+                    <div className="flex-1 h-px bg-white/20" />
                   </div>
                 )}
 
                 <div
-                  className="island-header"
-                  style={{
-                    background: theme.bg,
-                    borderColor: `${theme.node}44`,
-                  }}
+                  className="flex items-center gap-3 px-5 py-3.5 mx-3 mb-1 rounded-2xl border border-transparent"
+                  style={{ background: theme.bg, borderColor: `${theme.node}44` }}
                 >
-                  <span className="island-icon">{island.icon}</span>
+                  <span className="text-3xl shrink-0">{island.icon}</span>
                   <div>
-                    <div className="island-name" style={{ color: theme.label }}>
+                    <div className="font-[FredokaOne,sans-serif] text-[0.95rem] leading-tight" style={{ color: theme.label }}>
                       {island.name}
                     </div>
-                    <div className="island-prog" style={{ color: theme.label }}>
+                    <div className="text-[0.68rem] font-bold opacity-55 mt-px" style={{ color: theme.label }}>
                       {completed}/{islandLevels.length} completados
                     </div>
                   </div>
                 </div>
 
-                <div className="path-block" style={{ height: blockH }}>
+                <div className="relative w-full" style={{ height: blockH }}>
                   <svg
-                    className="path-svg"
+                    className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible"
                     viewBox={`0 0 100 ${blockH}`}
                     preserveAspectRatio="none"
                   >
@@ -417,13 +362,9 @@ export default function MapaPage() {
                       return (
                         <line
                           key={i}
-                          x1={prev.x}
-                          y1={prev.y}
-                          x2={c.x}
-                          y2={c.y}
+                          x1={prev.x} y1={prev.y} x2={c.x} y2={c.y}
                           stroke={active ? theme.node : "#2a2a35"}
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
+                          strokeWidth="2.5" strokeLinecap="round"
                           strokeDasharray={active ? undefined : "5 4"}
                           opacity={active ? 0.45 : 0.25}
                         />
@@ -440,20 +381,17 @@ export default function MapaPage() {
                     return (
                       <div
                         key={level.id}
-                        className="node-wrap"
+                        className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-2"
                         style={{ left: `${c.x}%`, top: c.y }}
                       >
-                        <div className="node-stars">
+                        <div className="flex gap-px mb-1">
                           {[1, 2, 3].map((s) => (
                             <span
                               key={s}
                               style={{
                                 fontSize: "0.65rem",
                                 opacity: isDone && level.stars >= s ? 1 : 0.18,
-                                filter:
-                                  isDone && level.stars >= s
-                                    ? `drop-shadow(0 0 4px ${theme.node})`
-                                    : "none",
+                                filter: isDone && level.stars >= s ? `drop-shadow(0 0 4px ${theme.node})` : "none",
                               }}
                             >
                               ⭐
@@ -462,39 +400,38 @@ export default function MapaPage() {
                         </div>
 
                         <button
-                          className={`node-btn ${level.status} ${level.is_boss ? "boss" : ""}`}
+                          className={`
+                            rounded-full border-[3px] border-transparent bg-[#2a2a35] text-white
+                            flex items-center justify-center relative outline-none
+                            transition-transform duration-140ms active:scale-[0.91]
+                            ${level.is_boss ? "w-18 h-18 text-[1.7rem]" : "w-16 h-16 text-[1.4rem]"}
+                            ${isCurrent ? "animate-[pulseNode_2s_ease-in-out_infinite]" : ""}
+                            ${isLocked ? "cursor-not-allowed opacity-50 grayscale-[0.6]" : "cursor-pointer"}
+                          `}
                           style={{
-                            background: isDone
-                              ? theme.node
-                              : isCurrent
-                                ? `linear-gradient(135deg, ${theme.node}, ${theme.nodeBorder})`
-                                : undefined,
-                            borderColor: isLocked
-                              ? undefined
-                              : theme.nodeBorder,
+                            background: isDone ? theme.node : isCurrent ? `linear-gradient(135deg, ${theme.node}, ${theme.nodeBorder})` : undefined,
+                            borderColor: isLocked ? undefined : theme.nodeBorder,
                             boxShadow: isCurrent
                               ? `0 4px 0 ${theme.nodeBorder}, 0 0 24px ${theme.shadow}`
                               : isDone
-                                ? `0 4px 0 ${theme.nodeBorder}88, 0 0 12px ${theme.shadow}`
-                                : undefined,
+                              ? `0 4px 0 ${theme.nodeBorder}88, 0 0 12px ${theme.shadow}`
+                              : undefined,
                           }}
                           disabled={isLocked}
-                          onClick={() => {
-                            if (!isLocked) router.push(`/jugar/${level.id}`);
-                          }}
+                          onClick={() => { if (!isLocked) router.push(`/jugar/${level.id}`); }}
                           aria-label={level.name}
                         >
                           {isLocked ? "🔒" : level.icon}
                           {isCurrent && (
                             <span
-                              className="node-ping"
+                              className="absolute -inset-2 rounded-full border-2 border-transparent animate-[pingAnim_2s_ease-out_infinite] opacity-0"
                               style={{ borderColor: theme.node }}
                             />
                           )}
                         </button>
 
                         <div
-                          className="node-label"
+                          className="mt-1.5 text-[0.64rem] font-extrabold text-center max-w-19.5 leading-tight px-1.5 py-px rounded-md bg-black/55 whitespace-nowrap overflow-hidden text-ellipsis"
                           style={{ color: isLocked ? "#3a3a45" : theme.label }}
                         >
                           {level.name.replace("JEFE: ", "👑 ")}
@@ -507,7 +444,7 @@ export default function MapaPage() {
             );
           })}
 
-          <div className="mapa-footer">
+          <div className="text-center px-4 py-7 text-white/18 text-xs font-bold">
             ⭐ {totalStars} estrellas · {completedCount} niveles completados
           </div>
         </main>
@@ -518,209 +455,9 @@ export default function MapaPage() {
 
 function LoadingScreen() {
   return (
-    <>
-      <style>{CSS}</style>
-      <div className="loading-root">
-        <div className="loading-emoji">🧮</div>
-        <div className="loading-text">Cargando mapa...</div>
-      </div>
-    </>
+    <div className="min-h-dvh bg-[#0a0a0f] flex flex-col items-center justify-center gap-3.5 font-[Nunito,sans-serif]">
+      <div className="text-5xl animate-[bounceLoad_0.75s_ease-in-out_infinite_alternate]">🧮</div>
+      <div className="text-white/35 text-sm font-bold">Cargando mapa...</div>
+    </div>
   );
 }
-
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Fredoka+One&display=swap');
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: auto; }
-body { background: #0a0a0f; overflow-x: hidden; min-height: 100dvh; }
-
-.bg-stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; background: #0a0a0f; }
-.star-dot {
-  position: absolute; border-radius: 50%; background: rgba(255,255,255,0.75);
-  animation: twinkle ease-in-out infinite alternate;
-}
-@keyframes twinkle {
-  from { opacity: 0.08; transform: scale(0.8); }
-  to   { opacity: 0.85; transform: scale(1.2); }
-}
-
-.mapa-root {
-  position: relative; z-index: 1; min-height: 100dvh;
-  font-family: 'Nunito', sans-serif; color: #fff;
-  display: flex; flex-direction: column; align-items: center;
-  max-width: 520px; margin: 0 auto;
-}
-
-.topbar {
-  position: sticky; top: 0; z-index: 50; width: 100%; padding: 10px 16px;
-  background: rgba(10,10,15,0.97);
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-}
-.topbar-left  { display: flex; align-items: center; gap: 10px; }
-.topbar-right { display: flex; align-items: center; gap: 8px; }
-
-.avatar-btn {
-  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
-  background: linear-gradient(135deg, #2a1a4a, #1a2a4a);
-  border: 2px solid rgba(255,255,255,0.2); font-size: 1.4rem;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: transform 0.15s, border-color 0.15s;
-}
-.avatar-btn:hover { transform: scale(1.08); border-color: rgba(255,255,255,0.4); }
-
-.profile-name { font-size: 0.88rem; font-weight: 800; color: #fff; line-height: 1.1; }
-.profile-sub  { font-size: 0.68rem; color: rgba(255,255,255,0.4); font-weight: 700; }
-
-.stat-pill {
-  display: flex; align-items: center; gap: 4px;
-  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px; padding: 4px 9px; font-size: 0.78rem; font-weight: 800; color: #fff;
-}
-
-.menu-btn {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.7); font-size: 1.2rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s; letter-spacing: -1px;
-}
-.menu-btn:hover { background: rgba(255,255,255,0.15); }
-
-.dropdown-menu {
-  position: fixed; top: 64px; right: calc(50vw - 244px); z-index: 9999;
-  background: #1a1a25; border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 14px; padding: 6px; min-width: 190px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-  animation: fade-in 0.15s ease;
-}
-@media (max-width: 560px) { .dropdown-menu { right: 16px; } }
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.dropdown-item {
-  width: 100%; padding: 11px 14px; border-radius: 10px; border: none;
-  background: transparent; color: rgba(255,255,255,0.85);
-  font-family: 'Nunito', sans-serif; font-size: 0.88rem; font-weight: 700;
-  cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;
-  transition: background 0.12s;
-}
-.dropdown-item:hover { background: rgba(255,255,255,0.08); }
-.dropdown-item.danger { color: #ef9a9a; }
-.dropdown-item.danger:hover { background: rgba(239,83,80,0.12); }
-.dropdown-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
-
-.avatar-overlay {
-  position: fixed; inset: 0; z-index: 300;
-  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
-  display: flex; align-items: center; justify-content: center;
-  animation: fade-in 0.2s ease;
-}
-.avatar-modal {
-  background: #1a1a25; border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 24px; padding: 28px 24px;
-  display: flex; flex-direction: column; align-items: center; gap: 20px;
-  width: min(340px, 90vw);
-}
-.avatar-modal-title { font-family: 'Fredoka One', sans-serif; font-size: 1.4rem; color: #fff; }
-.avatar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
-.avatar-option {
-  aspect-ratio: 1; border-radius: 16px; border: 2px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.06); font-size: 2rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: transform 0.15s, border-color 0.15s, background 0.15s;
-}
-.avatar-option:hover:not(:disabled) { transform: scale(1.08); background: rgba(255,255,255,0.12); }
-.avatar-option.selected { border-color: #FFD700; background: rgba(255,215,0,0.12); box-shadow: 0 0 16px rgba(255,215,0,0.3); }
-.avatar-option:disabled { opacity: 0.5; cursor: wait; }
-.avatar-close {
-  width: 100%; padding: 12px; border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);
-  font-family: 'Nunito', sans-serif; font-size: 0.9rem; font-weight: 700;
-  cursor: pointer; transition: background 0.15s;
-}
-.avatar-close:hover { background: rgba(255,255,255,0.1); }
-
-.mapa-scroll { width: 100%; padding: 12px 0 80px; display: flex; flex-direction: column; }
-.island-block { width: 100%; }
-
-.island-sep { display: flex; align-items: center; gap: 10px; padding: 6px 28px; opacity: 0.25; }
-.sep-line  { flex: 1; height: 1px; background: rgba(255,255,255,0.2); }
-.sep-arrow { font-size: 0.7rem; color: rgba(255,255,255,0.5); }
-
-.island-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 20px; margin: 0 12px 4px;
-  border-radius: 16px; border: 1px solid transparent;
-}
-.island-icon { font-size: 1.8rem; flex-shrink: 0; }
-.island-name { font-family: 'Fredoka One', sans-serif; font-size: 0.95rem; font-weight: 400; line-height: 1.2; }
-.island-prog { font-size: 0.68rem; font-weight: 700; opacity: 0.55; margin-top: 1px; }
-
-.path-block { position: relative; width: 100%; }
-.path-svg   { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-
-.node-wrap {
-  position: absolute; transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; z-index: 2;
-}
-.node-stars { display: flex; gap: 1px; margin-bottom: 5px; }
-
-.node-btn {
-  width: 62px; height: 62px; border-radius: 50%;
-  border: 3px solid transparent; background: #2a2a35; color: #fff;
-  font-size: 1.4rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  position: relative; transition: transform 0.14s; outline: none;
-}
-.node-btn.boss    { width: 72px; height: 72px; font-size: 1.7rem; }
-.node-btn.current { animation: pulse-node 2s ease-in-out infinite; }
-.node-btn.locked  { cursor: not-allowed; opacity: 0.5; filter: grayscale(0.6); }
-.node-btn:active:not(.locked) { transform: scale(0.91); }
-
-@keyframes pulse-node {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.07); }
-}
-
-.node-ping {
-  position: absolute; inset: -8px; border-radius: 50%;
-  border: 2px solid transparent;
-  animation: ping-anim 2s ease-out infinite; opacity: 0;
-}
-@keyframes ping-anim {
-  0%   { transform: scale(0.8); opacity: 0.7; }
-  100% { transform: scale(1.5); opacity: 0;   }
-}
-
-.node-label {
-  margin-top: 6px; font-size: 0.64rem; font-weight: 800;
-  text-align: center; max-width: 78px; line-height: 1.2;
-  padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,0.55);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.mapa-footer {
-  text-align: center; padding: 28px 16px;
-  color: rgba(255,255,255,0.18); font-size: 0.75rem; font-weight: 700;
-}
-
-.loading-root {
-  min-height: 100dvh; background: #0a0a0f;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 14px;
-  font-family: 'Nunito', sans-serif;
-}
-.loading-emoji { font-size: 3rem; animation: bounce-load 0.75s ease-in-out infinite alternate; }
-.loading-text  { color: rgba(255,255,255,0.35); font-size: 0.9rem; font-weight: 700; }
-@keyframes bounce-load { from { transform: translateY(0); } to { transform: translateY(-12px); } }
-
-@media (min-width: 560px) {
-  .mapa-root { border-left: 1px solid rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); }
-  .node-btn      { width: 68px; height: 68px; }
-  .node-btn.boss { width: 78px; height: 78px; }
-}
-`;

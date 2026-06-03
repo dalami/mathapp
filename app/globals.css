@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -23,4 +25,52 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.08; transform: scale(0.8); }
+  to   { opacity: 0.85; transform: scale(1.2); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseNode {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.07); }
+}
+@keyframes pingAnim {
+  0%   { transform: scale(0.8); opacity: 0.7; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes bounceLoad {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-12px); }
+}
+
+@keyframes bounceLogo {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes float {
+  0%   { transform: translateY(0px) rotate(0deg);    opacity: 0.08; }
+  50%  { opacity: 0.18; }
+  100% { transform: translateY(-80px) rotate(20deg); opacity: 0.08; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes pop {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+@keyframes starPop {
+  from { transform: scale(0) rotate(-20deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0);      opacity: 1; }
+}
+@keyframes pulseFade {
+  from { opacity: 0.5; }
+  to   { opacity: 1;   }
 }

@@ -93,8 +93,12 @@ export default function JugarPage() {
 
   const restoreLives = useRestoreLives(user?.id);
 
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
-  useEffect(() => { livesRef.current = lives; }, [lives]);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+  useEffect(() => {
+    livesRef.current = lives;
+  }, [lives]);
 
   const accentColor = ISLAND_COLORS[level?.island_id ?? 1] ?? "#4CAF50";
 
@@ -139,7 +143,9 @@ export default function JugarPage() {
 
         const { data: lvl, error: lvlErr } = await supabase
           .from("levels")
-          .select("id, name, icon, is_boss, time_limit_secs, questions_count, island_id, order_index")
+          .select(
+            "id, name, icon, is_boss, time_limit_secs, questions_count, island_id, order_index",
+          )
           .eq("id", levelId)
           .single();
 
@@ -156,7 +162,12 @@ export default function JugarPage() {
           .order("difficulty");
 
         if (qsErr || !qs || qs.length === 0) {
-          console.error("Error cargando preguntas:", qsErr, "cantidad:", qs?.length);
+          console.error(
+            "Error cargando preguntas:",
+            qsErr,
+            "cantidad:",
+            qs?.length,
+          );
           router.replace("/mapa");
           return;
         }
@@ -202,7 +213,9 @@ export default function JugarPage() {
     }
 
     fetchLevel();
-    return () => { fetchedRef.current = false; };
+    return () => {
+      fetchedRef.current = false;
+    };
   }, [user, levelId, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Shuffle opciones ────────────────────────────────────
@@ -215,115 +228,155 @@ export default function JugarPage() {
   }, [currentIdx, questions]);
 
   // ─── Finalizar nivel ─────────────────────────────────────
-  const handleFinish = useCallback(async (finalErrors: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (feedbackRef.current) clearTimeout(feedbackRef.current);
-    if (isSubmitting) return;
+  const handleFinish = useCallback(
+    async (finalErrors: number) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (feedbackRef.current) clearTimeout(feedbackRef.current);
+      if (isSubmitting) return;
 
-    setIsSubmitting(true);
-    setPhase("finished");
+      setIsSubmitting(true);
+      setPhase("finished");
 
-    const earnedStars = calcStars(finalErrors, questions.length);
-    const timeSpent = level?.time_limit_secs ? level.time_limit_secs - (timeLeft ?? 0) : 0;
-    setStars(earnedStars);
+      const earnedStars = calcStars(finalErrors, questions.length);
+      const timeSpent = level?.time_limit_secs
+        ? level.time_limit_secs - (timeLeft ?? 0)
+        : 0;
+      setStars(earnedStars);
 
-    if (user) {
-      try {
-        const { data } = await supabase.rpc("submit_level_result", {
-          p_user_id: user.id,
-          p_level_id: levelId,
-          p_stars: earnedStars,
-          p_errors: finalErrors,
-          p_time_seconds: timeSpent,
-        });
-        if (data) {
-          const result = data as SubmitResult;
-          setCoinsEarned(result.coins_earned ?? 0);
-          setIsNewBest(result.is_new_best ?? false);
+      if (user) {
+        try {
+          const { data } = await supabase.rpc("submit_level_result", {
+            p_user_id: user.id,
+            p_level_id: levelId,
+            p_stars: earnedStars,
+            p_errors: finalErrors,
+            p_time_seconds: timeSpent,
+          });
+          if (data) {
+            const result = data as SubmitResult;
+            setCoinsEarned(result.coins_earned ?? 0);
+            setIsNewBest(result.is_new_best ?? false);
+          }
+        } catch (e) {
+          console.error("Error guardando resultado:", e);
         }
-      } catch (e) {
-        console.error("Error guardando resultado:", e);
+        try {
+          await refreshProfile();
+        } catch (e) {
+          console.error("Error actualizando perfil:", e);
+        }
       }
-      try {
-        await refreshProfile();
-      } catch (e) {
-        console.error("Error actualizando perfil:", e);
-      }
-    }
 
-    if (earnedStars > 0) {
-      setCountdown(3);
-      let secs = 3;
-      countdownRef.current = setInterval(() => {
-        secs -= 1;
-        setCountdown(secs);
-        if (secs <= 0 && countdownRef.current) clearInterval(countdownRef.current);
-      }, 1000);
-      autoAdvanceRef.current = setTimeout(() => {
-        if (nextLevelId) router.replace(`/jugar/${nextLevelId}`);
-        else router.replace("/mapa");
-      }, 3500);
-    }
-  }, [isSubmitting, questions.length, level, timeLeft, user, levelId, refreshProfile, nextLevelId, router]);
+      if (earnedStars > 0) {
+        setCountdown(3);
+        let secs = 3;
+        countdownRef.current = setInterval(() => {
+          secs -= 1;
+          setCountdown(secs);
+          if (secs <= 0 && countdownRef.current)
+            clearInterval(countdownRef.current);
+        }, 1000);
+        autoAdvanceRef.current = setTimeout(() => {
+          if (nextLevelId) router.replace(`/jugar/${nextLevelId}`);
+          else router.replace("/mapa");
+        }, 3500);
+      }
+    },
+    [
+      isSubmitting,
+      questions.length,
+      level,
+      timeLeft,
+      user,
+      levelId,
+      refreshProfile,
+      nextLevelId,
+      router,
+    ],
+  );
 
   const handleFinishRef = useRef(handleFinish);
-  useEffect(() => { handleFinishRef.current = handleFinish; }, [handleFinish]);
+  useEffect(() => {
+    handleFinishRef.current = handleFinish;
+  }, [handleFinish]);
 
   // ─── Timer ───────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "playing" || timeLeft === null) return;
-    if (timeLeft <= 0) { handleFinishRef.current(errorsRef.current); return; }
-    timerRef.current = setTimeout(() => setTimeLeft((t) => t !== null ? t - 1 : null), 1000);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    if (timeLeft <= 0) {
+      handleFinishRef.current(errorsRef.current);
+      return;
+    }
+    timerRef.current = setTimeout(
+      () => setTimeLeft((t) => (t !== null ? t - 1 : null)),
+      1000,
+    );
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [timeLeft, phase]);
 
   // ─── Avanzar pregunta ────────────────────────────────────
-  const advanceQuestion = useCallback((newErrors: number, correct: boolean) => {
-    const isLast = currentIdx >= questions.length - 1;
-    const noLives = !correct && livesRef.current <= 0;
-    if (isLast || noLives) {
-      handleFinishRef.current(newErrors);
-    } else {
-      setCurrentIdx((i) => i + 1);
-      setSelectedOption(null);
-      setFeedback(null);
-      setPhase("playing");
-    }
-  }, [currentIdx, questions.length]);
+  const advanceQuestion = useCallback(
+    (newErrors: number, correct: boolean) => {
+      const isLast = currentIdx >= questions.length - 1;
+      const noLives = !correct && livesRef.current <= 0;
+      if (isLast || noLives) {
+        handleFinishRef.current(newErrors);
+      } else {
+        setCurrentIdx((i) => i + 1);
+        setSelectedOption(null);
+        setFeedback(null);
+        setPhase("playing");
+      }
+    },
+    [currentIdx, questions.length],
+  );
 
   // ─── Responder ───────────────────────────────────────────
-  const handleAnswer = useCallback(async (option: string) => {
-    if (phaseRef.current !== "playing" || selectedOption) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
+  const handleAnswer = useCallback(
+    async (option: string) => {
+      if (phaseRef.current !== "playing" || selectedOption) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
 
-    const question = questions[currentIdx];
-    const isCorrect = option === question.correct_answer;
+      const question = questions[currentIdx];
+      const isCorrect = option === question.correct_answer;
 
-    setSelectedOption(option);
-    setFeedback(isCorrect ? "correct" : "wrong");
-    setPhase("feedback");
+      setSelectedOption(option);
+      setFeedback(isCorrect ? "correct" : "wrong");
+      setPhase("feedback");
 
-    let newErrors = errorsRef.current;
+      let newErrors = errorsRef.current;
 
-    if (!isCorrect) {
-      newErrors += 1;
-      errorsRef.current = newErrors;
-      if (user) {
-        try {
-          const { data } = await supabase.rpc("spend_life", { p_user_id: user.id });
-          const newLives = typeof data === "number" ? data : Math.max(0, livesRef.current - 1);
-          livesRef.current = newLives;
-          setLives(newLives);
-        } catch {
-          const newLives = Math.max(0, livesRef.current - 1);
-          livesRef.current = newLives;
-          setLives(newLives);
+      if (!isCorrect) {
+        newErrors += 1;
+        errorsRef.current = newErrors;
+        if (user) {
+          try {
+            const { data } = await supabase.rpc("spend_life", {
+              p_user_id: user.id,
+            });
+            const newLives =
+              typeof data === "number"
+                ? data
+                : Math.max(0, livesRef.current - 1);
+            livesRef.current = newLives;
+            setLives(newLives);
+          } catch {
+            const newLives = Math.max(0, livesRef.current - 1);
+            livesRef.current = newLives;
+            setLives(newLives);
+          }
         }
       }
-    }
 
-    feedbackRef.current = setTimeout(() => advanceQuestion(newErrors, isCorrect), 1400);
-  }, [selectedOption, currentIdx, questions, user, advanceQuestion]);
+      feedbackRef.current = setTimeout(
+        () => advanceQuestion(newErrors, isCorrect),
+        1400,
+      );
+    },
+    [selectedOption, currentIdx, questions, user, advanceQuestion],
+  );
 
   // ─── Reintentar ──────────────────────────────────────────
   const handleRetry = useCallback(() => {
@@ -358,24 +411,21 @@ export default function JugarPage() {
     router.replace("/mapa");
   }, [router]);
 
-  // ─── RENDERS — no_lives va PRIMERO ───────────────────────
+  // ─── RENDERS ─────────────────────────────────────────────
   if (phase === "no_lives" && user) {
     return (
-      <>
-        <style>{CSS}</style>
-        <NoLivesModal
-          userId={user.id}
-          coins={coins}
-          livesResetAt={livesResetAt}
-          onClose={() => router.replace("/mapa")}
-          onLivesRestored={(newLives, newCoins) => {
-            setLives(newLives);
-            setCoins(newCoins);
-            fetchedRef.current = false;
-            router.replace(`/jugar/${levelId}`);
-          }}
-        />
-      </>
+      <NoLivesModal
+        userId={user.id}
+        coins={coins}
+        livesResetAt={livesResetAt}
+        onClose={() => router.replace("/mapa")}
+        onLivesRestored={(newLives, newCoins) => {
+          setLives(newLives);
+          setCoins(newCoins);
+          fetchedRef.current = false;
+          router.replace(`/jugar/${levelId}`);
+        }}
+      />
     );
   }
 
@@ -402,279 +452,287 @@ export default function JugarPage() {
   const question = questions[currentIdx];
   const progress = (currentIdx / questions.length) * 100;
   const isTwoOptions = question.options.length === 2;
-  const timerPct = level.time_limit_secs && timeLeft !== null
-    ? (timeLeft / level.time_limit_secs) * 100 : 100;
-  const timerColor = timeLeft !== null && timeLeft < 10 ? "#EF5350"
-    : timeLeft !== null && timeLeft < 20 ? "#FFA726" : accentColor;
+  const timerPct =
+    level.time_limit_secs && timeLeft !== null
+      ? (timeLeft / level.time_limit_secs) * 100
+      : 100;
+  const timerColor =
+    timeLeft !== null && timeLeft < 10
+      ? "#EF5350"
+      : timeLeft !== null && timeLeft < 20
+        ? "#FFA726"
+        : accentColor;
 
   return (
-    <>
-      <style>{CSS}</style>
-      <div className="game-root">
-        <header className="game-header">
-          <button className="exit-btn" onClick={handleExit} aria-label="Salir">✕</button>
-          <div className="progress-wrap">
-            <div className="progress-fill" style={{ width: `${progress}%`, background: accentColor }} />
-          </div>
-          <div className="lives-row">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <span key={i} className={`life ${i > lives ? "lost" : ""}`}>❤️</span>
-            ))}
-          </div>
-        </header>
-
-        {timeLeft !== null && level.time_limit_secs && (
-          <div className="timer-row">
-            <span className="timer-icon">⏱</span>
-            <div className="timer-track">
-              <div className="timer-fill" style={{ width: `${timerPct}%`, background: timerColor }} />
-            </div>
-            <span className="timer-num" style={{ color: timerColor }}>{timeLeft}s</span>
-          </div>
-        )}
-
-        <div className="question-card">
-          <div className="q-counter">Pregunta {currentIdx + 1} / {questions.length}</div>
-          <div className="q-body">{question.body}</div>
+    <div className="min-h-dvh bg-[#0a0a0f] font-[Nunito,sans-serif] text-white flex flex-col items-center w-full max-w-140 mx-auto pb-10">
+      {/* ── HEADER ── */}
+      <header className="w-full px-5 pt-4 pb-3 flex items-center gap-3.5 sticky top-0 z-10 bg-[rgba(10,10,15,0.97)] border-b border-white/6">
+        <button
+          className="w-9 h-9 rounded-full shrink-0 bg-white/8 border border-white/12 text-white/60 text-base cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-white/15"
+          onClick={handleExit}
+          aria-label="Salir"
+        >
+          ✕
+        </button>
+        <button
+          className="text-lg leading-none opacity-50 hover:opacity-90 transition-opacity duration-150"
+          onClick={handleExit}
+          aria-label="Volver al mapa"
+          title="Volver al mapa"
+        >
+          🗺️
+        </button>
+        <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-[width] duration-400ms ease-out"
+            style={{ width: `${progress}%`, background: accentColor }}
+          />
         </div>
-
-        <div className={`options-grid ${isTwoOptions ? "two" : "four"}`}>
-          {shuffledOptions.map((option) => {
-            let cls = "option-btn";
-            if (selectedOption) {
-              if (option === question.correct_answer) cls += " correct";
-              else if (option === selectedOption) cls += " wrong";
-              else cls += " dimmed";
-            }
-            return (
-              <button
-                key={option}
-                className={cls}
-                disabled={!!selectedOption}
-                onClick={() => handleAnswer(option)}
-                style={!selectedOption ? {
-                  borderColor: `${accentColor}44`,
-                  borderBottomColor: `${accentColor}88`,
-                } : undefined}
-              >
-                {option}
-              </button>
-            );
-          })}
+        <div className="flex gap-1 shrink-0">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <span
+              key={i}
+              className={`text-[1.05rem] transition-all duration-300 ${i > lives ? "opacity-[0.18] grayscale" : ""}`}
+            >
+              ❤️
+            </span>
+          ))}
         </div>
+      </header>
 
-        {feedback && (
-          <div className={`feedback-banner ${feedback}`}>
-            <span className="fb-icon">{feedback === "correct" ? "✅" : "❌"}</span>
-            <span>{feedback === "correct" ? "¡Correcto! 🎉" : `Casi. Era: ${question.correct_answer}`}</span>
+      {/* ── TIMER ── */}
+      {timeLeft !== null && level.time_limit_secs && (
+        <div className="w-full px-5 pt-2.5 pb-1.5 flex items-center gap-2.5">
+          <span className="text-[0.9rem]">⏱</span>
+          <div className="flex-1 h-1.5 bg-white/8 rounded full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-[width] duration-1000 linear"
+              style={{
+                width: `${timerPct}%`,
+                background: timerColor,
+                transition: "width 1s linear, background 0.4s",
+              }}
+            />
           </div>
-        )}
+          <span
+            className="text-[0.82rem] font-extrabold min-w-7.5 text-right transition-colors duration-300"
+            style={{ color: timerColor }}
+          >
+            {timeLeft}s
+          </span>
+        </div>
+      )}
 
-        {phase === "feedback" && (
-          <button className="skip-btn" onClick={() => advanceQuestion(errorsRef.current, feedback === "correct")}>
-            Continuar →
-          </button>
-        )}
+      {/* ── PREGUNTA ── */}
+      <div className="w-[calc(100%-32px)] mt-5 bg-white/5 border border-white/9 rounded-3xl px-6 py-7 min-h-37.5 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="text-[0.72rem] font-extrabold opacity-35 tracking-[1.2px] uppercase">
+          Pregunta {currentIdx + 1} / {questions.length}
+        </div>
+        <div className="font-[FredokaOne,sans-serif] text-[clamp(1.2rem,3.5vw,1.6rem)] leading-[1.45] text-white">
+          {question.body}
+        </div>
       </div>
-    </>
+
+      {/* ── OPCIONES ── */}
+      <div
+        className={`w-[calc(100%-32px)] mt-4 grid gap-3 ${isTwoOptions ? "grid-cols-2" : "grid-cols-2"}`}
+      >
+        {shuffledOptions.map((option) => {
+          const isCorrectOpt = option === question.correct_answer;
+          const isSelectedOpt = option === selectedOption;
+
+          return (
+            <button
+              key={option}
+              disabled={!!selectedOption}
+              onClick={() => handleAnswer(option)}
+              className={`
+                px-3.5 py-4.5 rounded-[18px] border-2 border-b-4
+                font-[Nunito,sans-serif] text-[clamp(0.9rem,2.5vw,1.05rem)] font-extrabold
+                text-white text-center leading-snug cursor-pointer
+                transition-all duration-120 disabled:cursor-default
+                hover:not-disabled:-translate-y-0.5 hover:not-disabled:bg-white/12
+                active:not-disabled:translate-y-0.5 active:not-disabled:border-b-2
+                ${
+                  selectedOption
+                    ? isCorrectOpt
+                      ? "bg-green-500/25 border-[#4CAF50] border-b-[#2e7d32]"
+                      : isSelectedOpt
+                        ? "bg-red-500/25 border-[#EF5350] border-b-[#b71c1c]"
+                        : "opacity-40 bg-white/6 border-white/10 border-b-white/8"
+                    : "bg-white/6 border-white/10 border-b-white/8"
+                }
+              `}
+              style={
+                !selectedOption
+                  ? {
+                      borderColor: `${accentColor}44`,
+                      borderBottomColor: `${accentColor}88`,
+                    }
+                  : undefined
+              }
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── FEEDBACK ── */}
+      {feedback && (
+        <div
+          className={`w-[calc(100%-32px)] mt-3.5 px-4.5 py-3.5 rounded-2xl flex items-center gap-3 font-extrabold text-[0.95rem] animate-[slideUp_0.22s_ease] ${
+            feedback === "correct"
+              ? "bg-green-500/18 border border-[#4CAF5055] text-[#a5d6a7]"
+              : "bg-red-500/18 border border-[#EF535055] text-[#ef9a9a]"
+          }`}
+        >
+          <span className="text-[1.3rem] shrink-0">
+            {feedback === "correct" ? "✅" : "❌"}
+          </span>
+          <span>
+            {feedback === "correct"
+              ? "¡Correcto! 🎉"
+              : `Casi. Era: ${question.correct_answer}`}
+          </span>
+        </div>
+      )}
+
+      {/* ── CONTINUAR ── */}
+      {phase === "feedback" && (
+        <button
+          className="mt-3 px-6 py-2.5 rounded-xl border-none bg-white/8 text-white/50 font-[Nunito,sans-serif] text-[0.85rem] font-bold cursor-pointer transition-colors duration-150 hover:bg-white/[0.14] hover:text-white"
+          onClick={() =>
+            advanceQuestion(errorsRef.current, feedback === "correct")
+          }
+        >
+          Continuar →
+        </button>
+      )}
+
+      {/* ── BANNER ADMOB ── */}
+      <div className="w-[calc(100%-32px)] mt-auto pt-4">
+        <div className="w-full h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center gap-2">
+          <span className="text-white/20 text-xs font-bold tracking-widest uppercase">
+            Publicidad
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ─── Pantalla de resultado ────────────────────────────────────
 function FinishScreen({
-  stars, coinsEarned, isNewBest, levelName, accentColor,
-  nextLevelId, countdown, onBack, onRetry,
+  stars,
+  coinsEarned,
+  isNewBest,
+  levelName,
+  accentColor,
+  nextLevelId,
+  countdown,
+  onBack,
+  onRetry,
 }: {
-  stars: number; coinsEarned: number; isNewBest: boolean; levelName: string;
-  accentColor: string; nextLevelId: string | null; countdown: number | null;
-  onBack: () => void; onRetry: () => void;
+  stars: number;
+  coinsEarned: number;
+  isNewBest: boolean;
+  levelName: string;
+  accentColor: string;
+  nextLevelId: string | null;
+  countdown: number | null;
+  onBack: () => void;
+  onRetry: () => void;
 }) {
   const won = stars > 0;
   return (
-    <>
-      <style>{CSS}</style>
-      <div className="finish-root">
-        <div className="finish-emoji">
-          {stars === 3 ? "🏆" : stars === 2 ? "🎉" : won ? "👍" : "💪"}
-        </div>
-        <h1 className="finish-title" style={{ color: accentColor }}>
-          {stars === 3 ? "¡Perfecto!" : stars === 2 ? "¡Muy bien!" : won ? "¡Lo lograste!" : "¡Seguí intentando!"}
-        </h1>
-        <p className="finish-level">{levelName}</p>
-        <div className="stars-row">
-          {[1, 2, 3].map((s) => (
-            <span key={s} className="star" style={{
+    <div className="min-h-dvh bg-[#0a0a0f] font-[Nunito,sans-serif] text-white flex flex-col items-center justify-center max-w-120 mx-auto px-6 py-10 gap-5 text-center">
+      <div className="text-[4.5rem] animate-[pop_0.4s_cubic-bezier(0.34,1.56,0.64,1)]">
+        {stars === 3 ? "🏆" : stars === 2 ? "🎉" : won ? "👍" : "💪"}
+      </div>
+
+      <h1
+        className="font-[FredokaOne,sans-serif] text-[clamp(1.8rem,5vw,2.4rem)] font-normal"
+        style={{ color: accentColor }}
+      >
+        {stars === 3
+          ? "¡Perfecto!"
+          : stars === 2
+            ? "¡Muy bien!"
+            : won
+              ? "¡Lo lograste!"
+              : "¡Seguí intentando!"}
+      </h1>
+
+      <p className="text-[0.88rem] opacity-45 font-bold">{levelName}</p>
+
+      <div className="flex gap-3.5 justify-center my-2">
+        {[1, 2, 3].map((s) => (
+          <span
+            key={s}
+            className="text-[clamp(2.2rem,6vw,3rem)] animate-[starPop_0.4s_cubic-bezier(0.34,1.56,0.64,1)_both]"
+            style={{
               opacity: stars >= s ? 1 : 0.18,
               animationDelay: `${s * 0.15}s`,
               filter: stars >= s ? "drop-shadow(0 0 8px #FFD700)" : "none",
-            }}>⭐</span>
-          ))}
-        </div>
-        {coinsEarned > 0 && <div className="coins-badge">🪙 +{coinsEarned} monedas</div>}
-        {isNewBest && <div className="best-badge">🎯 ¡Nuevo récord personal!</div>}
-        {won && nextLevelId && countdown !== null && (
-          <div className="countdown-badge">Siguiente nivel en {countdown}s...</div>
-        )}
-        {won && !nextLevelId && (
-          <div className="countdown-badge">🏝️ ¡Isla completada! Volviendo al mapa...</div>
-        )}
-        <div className="finish-btns">
-          <button className="btn-back-secondary" onClick={onBack}>Volver al mapa 🗺️</button>
-          {!won && (
-            <button className="btn-retry" onClick={onRetry} style={{ background: accentColor }}>
-              Intentar de nuevo 🔄
-            </button>
-          )}
-        </div>
+            }}
+          >
+            ⭐
+          </span>
+        ))}
       </div>
-    </>
+
+      {coinsEarned > 0 && (
+        <div className="inline-flex items-center gap-2 bg-[rgba(255,215,0,0.1)] border border-[rgba(255,215,0,0.3)] rounded-full px-5 py-2.5 text-[0.95rem] font-extrabold text-[#FFD700]">
+          🪙 +{coinsEarned} monedas
+        </div>
+      )}
+
+      {isNewBest && (
+        <div className="bg-green-500/12 border border-green-500/30 rounded-xl px-4 py-2 text-[0.85rem] font-extrabold text-[#a5d6a7]">
+          🎯 ¡Nuevo récord personal!
+        </div>
+      )}
+
+      {won && nextLevelId && countdown !== null && (
+        <div className="bg-white/6 border border-white/12 rounded-xl px-5 py-2.5 text-[0.88rem] font-extrabold text-white/60 animate-[pulseFade_1s_ease-in-out_infinite_alternate]">
+          Siguiente nivel en {countdown}s...
+        </div>
+      )}
+
+      {won && !nextLevelId && (
+        <div className="bg-white/6 border border-white/12 rounded-xl px-5 py-2.5 text-[0.88rem] font-extrabold text-white/60 animate-[pulseFade_1s_ease-in-out_infinite_alternate]">
+          🏝️ ¡Isla completada! Volviendo al mapa...
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 w-full max-w-85">
+        <button
+          className="w-full py-4.5 rounded-[18px] border-none bg-white/8 text-white/60 font-[Nunito,sans-serif] text-base font-black cursor-pointer transition-all duration-120 border border-white/12 hover:bg-white/13"
+          onClick={onBack}
+        >
+          Volver al mapa 🗺️
+        </button>
+        {!won && (
+          <button
+            className="w-full py-4.5 rounded-[18px] border-none text-[#0a0a0f] font-[Nunito,sans-serif] text-base font-black cursor-pointer transition-all duration-120 shadow-[0_5px_0_rgba(0,0,0,0.25)] hover:-translate-y-0.5 hover:shadow-[0_7px_0_rgba(0,0,0,0.25)] active:translate-y-0.5 active:shadow-[0_2px_0_rgba(0,0,0,0.25)]"
+            style={{ background: accentColor }}
+            onClick={onRetry}
+          >
+            Intentar de nuevo 🔄
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
 function LoadingScreen() {
   return (
-    <>
-      <style>{CSS}</style>
-      <div className="loading-root">
-        <div className="loading-emoji">🧮</div>
+    <div className="min-h-dvh bg-[#0a0a0f] flex items-center justify-center">
+      <div className="text-[3.5rem] animate-[bounceLoad_0.7s_ease-in-out_infinite_alternate]">
+        🧮
       </div>
-    </>
+    </div>
   );
 }
-
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Fredoka+One&display=swap');
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: #0a0a0f; }
-
-.game-root, .finish-root, .loading-root {
-  min-height: 100dvh; background: #0a0a0f;
-  font-family: 'Nunito', sans-serif; color: #fff;
-  display: flex; flex-direction: column; align-items: center; width: 100%;
-}
-.game-root   { max-width: 560px; margin: 0 auto; padding-bottom: 40px; }
-.finish-root { max-width: 480px; margin: 0 auto; justify-content: center; padding: 40px 24px; gap: 20px; text-align: center; }
-.loading-root { justify-content: center; }
-
-.game-header {
-  width: 100%; padding: 16px 20px 12px;
-  display: flex; align-items: center; gap: 14px;
-  position: sticky; top: 0; z-index: 10;
-  background: rgba(10,10,15,0.97);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.exit-btn {
-  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.6); font-size: 1rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; transition: background 0.15s;
-}
-.exit-btn:hover { background: rgba(255,255,255,0.15); }
-.progress-wrap { flex: 1; height: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 8px; transition: width 0.4s ease; }
-.lives-row { display: flex; gap: 3px; flex-shrink: 0; }
-.life { font-size: 1.05rem; transition: opacity 0.3s, filter 0.3s; }
-.life.lost { opacity: 0.18; filter: grayscale(1); }
-
-.timer-row { width: 100%; padding: 10px 20px 6px; display: flex; align-items: center; gap: 10px; }
-.timer-icon { font-size: 0.9rem; }
-.timer-track { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
-.timer-fill { height: 100%; border-radius: 4px; transition: width 1s linear, background 0.4s; }
-.timer-num { font-size: 0.82rem; font-weight: 800; min-width: 30px; text-align: right; transition: color 0.3s; }
-
-.question-card {
-  width: calc(100% - 32px); margin: 20px auto 0;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 24px; padding: 28px 24px; min-height: 150px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center;
-}
-.q-counter { font-size: 0.72rem; font-weight: 800; opacity: 0.35; letter-spacing: 1.2px; text-transform: uppercase; }
-.q-body { font-family: 'Fredoka One', sans-serif; font-size: clamp(1.2rem, 3.5vw, 1.6rem); font-weight: 400; line-height: 1.45; color: #fff; }
-
-.options-grid { width: calc(100% - 32px); margin: 16px auto 0; display: grid; gap: 12px; }
-.options-grid.four { grid-template-columns: 1fr 1fr; }
-.options-grid.two  { grid-template-columns: 1fr 1fr; }
-
-.option-btn {
-  padding: 18px 14px; border-radius: 18px;
-  border: 2px solid rgba(255,255,255,0.1); border-bottom: 4px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.06); color: #fff;
-  font-family: 'Nunito', sans-serif; font-size: clamp(0.9rem, 2.5vw, 1.05rem);
-  font-weight: 800; cursor: pointer; text-align: center;
-  transition: transform 0.12s, background 0.12s, border-color 0.12s; line-height: 1.3;
-}
-.option-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
-.option-btn:active:not(:disabled) { transform: translateY(2px); border-bottom-width: 2px; }
-.option-btn:disabled { cursor: default; }
-.option-btn.correct { background: rgba(76,175,80,0.25) !important; border-color: #4CAF50 !important; border-bottom-color: #2e7d32 !important; }
-.option-btn.wrong   { background: rgba(239,83,80,0.25) !important; border-color: #EF5350 !important; border-bottom-color: #b71c1c !important; }
-.option-btn.dimmed  { opacity: 0.4; }
-
-.feedback-banner {
-  width: calc(100% - 32px); margin: 14px auto 0; padding: 14px 18px; border-radius: 16px;
-  display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 0.95rem;
-  animation: slide-up 0.22s ease;
-}
-.feedback-banner.correct { background: rgba(76,175,80,0.18); border: 1px solid #4CAF5055; color: #a5d6a7; }
-.feedback-banner.wrong   { background: rgba(239,83,80,0.18); border: 1px solid #EF535055; color: #ef9a9a; }
-.fb-icon { font-size: 1.3rem; flex-shrink: 0; }
-@keyframes slide-up { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-.skip-btn {
-  margin: 12px auto 0; padding: 10px 24px; border-radius: 12px; border: none;
-  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
-  font-family: 'Nunito', sans-serif; font-size: 0.85rem; font-weight: 700;
-  cursor: pointer; transition: background 0.15s;
-}
-.skip-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
-
-.finish-emoji { font-size: 4.5rem; animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
-@keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
-.finish-title { font-family: 'Fredoka One', sans-serif; font-size: clamp(1.8rem, 5vw, 2.4rem); font-weight: 400; }
-.finish-level { font-size: 0.88rem; opacity: 0.45; font-weight: 700; }
-.stars-row { display: flex; gap: 14px; justify-content: center; margin: 8px 0; }
-.star { font-size: clamp(2.2rem, 6vw, 3rem); animation: star-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
-@keyframes star-pop { from { transform: scale(0) rotate(-20deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
-
-.coins-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3);
-  border-radius: 20px; padding: 10px 20px; font-size: 0.95rem; font-weight: 800; color: #FFD700;
-}
-.best-badge {
-  background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.3);
-  border-radius: 12px; padding: 8px 16px; font-size: 0.85rem; font-weight: 800; color: #a5d6a7;
-}
-.countdown-badge {
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px; padding: 10px 20px; font-size: 0.88rem; font-weight: 800;
-  color: rgba(255,255,255,0.6); animation: pulse-fade 1s ease-in-out infinite alternate;
-}
-@keyframes pulse-fade { from { opacity: 0.5; } to { opacity: 1; } }
-
-.finish-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 340px; }
-.btn-retry, .btn-back-primary, .btn-back-secondary {
-  width: 100%; padding: 18px; border-radius: 18px; border: none;
-  font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 900;
-  cursor: pointer; transition: transform 0.12s, box-shadow 0.12s;
-  box-shadow: 0 5px 0 rgba(0,0,0,0.25);
-}
-.btn-retry:hover, .btn-back-primary:hover { transform: translateY(-2px); box-shadow: 0 7px 0 rgba(0,0,0,0.25); }
-.btn-retry:active, .btn-back-primary:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
-.btn-retry { color: #0a0a0f; }
-.btn-back-secondary {
-  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6);
-  border: 1px solid rgba(255,255,255,0.12); box-shadow: none;
-}
-.btn-back-secondary:hover { background: rgba(255,255,255,0.13); }
-
-.loading-emoji { font-size: 3.5rem; animation: bounce 0.7s ease-in-out infinite alternate; }
-@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-14px); } }
-
-@media (min-width: 600px) {
-  .question-card { padding: 36px 32px; min-height: 180px; }
-  .options-grid  { gap: 14px; }
-  .option-btn    { padding: 22px 18px; border-radius: 20px; }
-  .game-header   { padding: 18px 28px 14px; }
-}
-`;

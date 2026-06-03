@@ -57,9 +57,46 @@ const PARTICLES = ["⭐", "🔢", "➕", "➖", "✖️", "🍎", "🎲", "💡"
 
 function Particles() {
   return (
-    <div className="particles" aria-hidden="true">
+    <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
       {PARTICLES.map((p, i) => (
-        <span key={i} className={`particle particle-${i}`}>
+        <span
+          key={i}
+          className="absolute text-2xl opacity-[0.12] animate-[float_linear_infinite]"
+          style={{
+            left: ["5%", "20%", "40%", "60%", "75%", "85%", "10%", "55%"][i],
+            top: ["10%", "70%", "15%", "80%", "25%", "60%", "50%", "45%"][i],
+            animationDuration: [
+              "14s",
+              "18s",
+              "12s",
+              "16s",
+              "20s",
+              "15s",
+              "22s",
+              "11s",
+            ][i],
+            animationDelay: [
+              "0s",
+              "-3s",
+              "-7s",
+              "-2s",
+              "-5s",
+              "-1s",
+              "-9s",
+              "-4s",
+            ][i],
+            fontSize: [
+              "2rem",
+              "1.2rem",
+              "1.5rem",
+              "1.8rem",
+              "1.5rem",
+              "2.2rem",
+              "1rem",
+              "1.6rem",
+            ][i],
+          }}
+        >
           {p}
         </span>
       ))}
@@ -83,23 +120,21 @@ function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Si ya hay sesión activa, redirigir al mapa
   useEffect(() => {
-  if (!loading && user) {
-    const t = setTimeout(() => router.replace("/mapa"), 0);
-    return () => clearTimeout(t);
-  }
-}, [user, loading, router]);
+    if (!loading && user) {
+      const t = setTimeout(() => router.replace("/mapa"), 0);
+      return () => clearTimeout(t);
+    }
+  }, [user, loading, router]);
 
-  // Mostrar error de callback (ej: link de email expirado)
   useEffect(() => {
-  if (searchParams.get("error") === "callback_failed") {
-    const t = setTimeout(() => {
-      setError("El link expiró o no es válido. Intentá de nuevo.");
-    }, 0);
-    return () => clearTimeout(t);
-  }
-}, [searchParams]);
+    if (searchParams.get("error") === "callback_failed") {
+      const t = setTimeout(() => {
+        setError("El link expiró o no es válido. Intentá de nuevo.");
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,12 +179,16 @@ function AuthForm() {
   if (loading) return null;
 
   return (
-    <div className="card">
+    <div className="bg-white/6 backdrop-blur-xl border border-white/12 rounded-[28px] p-10 w-full max-w-105 relative z-10 shadow-[0_32px_64px_rgba(0,0,0,0.4)]">
       {/* Logo / encabezado */}
-      <div className="card-header">
-        <div className="logo">🧮</div>
-        <h1 className="title">MathApp</h1>
-        <p className="subtitle">
+      <div className="text-center mb-7">
+        <span className="text-[3.5rem] block mb-2 drop-shadow-[0_4px_12px_rgba(255,200,0,0.4)] animate-[bounceLogo_2s_ease-in-out_infinite]">
+          🧮
+        </span>
+        <h1 className="text-4xl font-extrabold text-white tracking-tight">
+          MathApp
+        </h1>
+        <p className="text-[0.95rem] text-white/55 mt-1">
           {mode === "login"
             ? "¡Bienvenido de vuelta!"
             : "¡Creá tu cuenta gratis!"}
@@ -157,10 +196,14 @@ function AuthForm() {
       </div>
 
       {/* Toggle login / registro */}
-      <div className="mode-toggle">
+      <div className="flex bg-black/25 rounded-2xl p-1 mb-5 gap-1">
         <button
           type="button"
-          className={`toggle-btn ${mode === "login" ? "active" : ""}`}
+          className={`flex-1 py-2.5 rounded-xl text-[0.9rem] font-bold cursor-pointer transition-all duration-200 border-none ${
+            mode === "login"
+              ? "bg-[#FFD700] text-[#1a1a4e] shadow-[0_4px_12px_rgba(255,215,0,0.35)]"
+              : "bg-transparent text-white/50"
+          }`}
           onClick={() => {
             setMode("login");
             setError(null);
@@ -171,7 +214,11 @@ function AuthForm() {
         </button>
         <button
           type="button"
-          className={`toggle-btn ${mode === "register" ? "active" : ""}`}
+          className={`flex-1 py-2.5 rounded-xl text-[0.9rem] font-bold cursor-pointer transition-all duration-200 border-none ${
+            mode === "register"
+              ? "bg-[#FFD700] text-[#1a1a4e] shadow-[0_4px_12px_rgba(255,215,0,0.35)]"
+              : "bg-transparent text-white/50"
+          }`}
           onClick={() => {
             setMode("register");
             setError(null);
@@ -185,7 +232,7 @@ function AuthForm() {
       {/* Google OAuth */}
       <button
         type="button"
-        className="google-btn"
+        className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-white/95 text-[#333] border-none rounded-2xl text-[0.95rem] font-bold cursor-pointer transition-all duration-200 mb-4 hover:bg-white hover:-translate-y-px hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
         onClick={handleGoogle}
         disabled={submitting}
       >
@@ -193,15 +240,21 @@ function AuthForm() {
         Continuar con Google
       </button>
 
-      <div className="divider">
-        <span>o</span>
+      {/* Divider */}
+      <div className="flex items-center gap-3 mb-4 text-white/30 text-[0.85rem] before:content-[''] before:flex-1 before:h-px before:bg-white/12 after:content-[''] after:flex-1 after:h-px after:bg-white/12">
+        o
       </div>
 
       {/* Formulario */}
       <form onSubmit={handleSubmit} noValidate>
         {mode === "register" && (
-          <div className="field">
-            <label htmlFor="name">¿Cómo te llamás?</label>
+          <div className="mb-3.5">
+            <label
+              htmlFor="name"
+              className="block text-[0.85rem] font-bold text-white/70 mb-1.5"
+            >
+              ¿Cómo te llamás?
+            </label>
             <input
               id="name"
               type="text"
@@ -210,12 +263,18 @@ function AuthForm() {
               onChange={(e) => setDisplayName(e.target.value)}
               required
               autoComplete="name"
+              className="w-full px-4 py-3.5 bg-white/8 border border-white/12 rounded-xl text-white text-[0.95rem] font-[inherit] outline-none transition-all duration-200 placeholder:text-white/30 focus:border-[#FFD700] focus:bg-white/12"
             />
           </div>
         )}
 
-        <div className="field">
-          <label htmlFor="email">Email</label>
+        <div className="mb-3.5">
+          <label
+            htmlFor="email"
+            className="block text-[0.85rem] font-bold text-white/70 mb-1.5"
+          >
+            Email
+          </label>
           <input
             id="email"
             type="email"
@@ -224,17 +283,24 @@ function AuthForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
+            className="w-full px-4 py-3.5 bg-white/8 border border-white/12 rounded-xl text-white text-[0.95rem] font-[inherit] outline-none transition-all duration-200 placeholder:text-white/30 focus:border-[#FFD700] focus:bg-white/12"
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="password">
+        <div className="mb-3.5">
+          <label
+            htmlFor="password"
+            className="block text-[0.85rem] font-bold text-white/70 mb-1.5"
+          >
             Contraseña
             {mode === "register" && (
-              <span className="hint"> (mínimo 6 caracteres)</span>
+              <span className="font-normal opacity-70">
+                {" "}
+                (mínimo 6 caracteres)
+              </span>
             )}
           </label>
-          <div className="pass-wrapper">
+          <div className="relative">
             <input
               id="password"
               type={showPass ? "text" : "password"}
@@ -246,10 +312,11 @@ function AuthForm() {
               autoComplete={
                 mode === "login" ? "current-password" : "new-password"
               }
+              className="w-full px-4 py-3.5 bg-white/8 border border-white/12 rounded-xl text-white text-[0.95rem] font-[inherit] outline-none transition-all duration-200 placeholder:text-white/30 focus:border-[#FFD700] focus:bg-white/12"
             />
             <button
               type="button"
-              className="eye-btn"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer flex items-center transition-colors duration-200 p-0 hover:text-white/80"
               onClick={() => setShowPass((v) => !v)}
               aria-label={
                 showPass ? "Ocultar contraseña" : "Mostrar contraseña"
@@ -260,19 +327,28 @@ function AuthForm() {
           </div>
         </div>
 
-        {/* Mensajes de error / éxito */}
         {error && (
-          <div className="msg msg-error" role="alert">
+          <div
+            className="px-4 py-3 rounded-xl text-[0.88rem] mb-3.5 font-semibold leading-snug bg-red-500/20 text-red-300 border border-red-500/30"
+            role="alert"
+          >
             ⚠️ {error}
           </div>
         )}
         {successMsg && (
-          <div className="msg msg-success" role="status">
+          <div
+            className="px-4 py-3 rounded-xl text-[0.88rem] mb-3.5 font-semibold leading-snug bg-green-500/20 text-green-300 border border-green-500/30"
+            role="status"
+          >
             ✅ {successMsg}
           </div>
         )}
 
-        <button type="submit" className="submit-btn" disabled={submitting}>
+        <button
+          type="submit"
+          className="w-full py-4 bg-linear-to-br from-[#FFD700] to-[#FF8C00] text-[#1a1a4e] border-none rounded-2xl text-base font-extrabold cursor-pointer transition-all duration-200 mt-1 tracking-wide shadow-[0_6px_20px_rgba(255,140,0,0.35)] hover:not-disabled:-translate-y-0.5 hover:not-disabled:shadow-[0_10px_28px_rgba(255,140,0,0.45)] active:not-disabled:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+          disabled={submitting}
+        >
           {submitting
             ? "Cargando..."
             : mode === "login"
@@ -287,256 +363,12 @@ function AuthForm() {
 // ─── Página principal ─────────────────────────────────────────
 export default function AuthPage() {
   return (
-    <>
-      <style>{`
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-          font-family: 'Nunito', 'Fredoka One', system-ui, sans-serif;
-          background: #0f0c29;
-          min-height: 100vh;
-        }
-
-        .page {
-          min-height: 100vh;
-          background: linear-gradient(135deg, #1a1a4e 0%, #16213e 50%, #0f3460 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        /* Partículas flotantes */
-        .particles { position: absolute; inset: 0; pointer-events: none; }
-        .particle {
-          position: absolute;
-          font-size: 1.5rem;
-          opacity: 0.12;
-          animation: float linear infinite;
-        }
-        .particle-0 { left: 5%;  top: 10%; animation-duration: 14s; animation-delay: 0s;   font-size: 2rem; }
-        .particle-1 { left: 20%; top: 70%; animation-duration: 18s; animation-delay: -3s;  font-size: 1.2rem; }
-        .particle-2 { left: 40%; top: 15%; animation-duration: 12s; animation-delay: -7s;  }
-        .particle-3 { left: 60%; top: 80%; animation-duration: 16s; animation-delay: -2s;  font-size: 1.8rem; }
-        .particle-4 { left: 75%; top: 25%; animation-duration: 20s; animation-delay: -5s;  }
-        .particle-5 { left: 85%; top: 60%; animation-duration: 15s; animation-delay: -1s;  font-size: 2.2rem; }
-        .particle-6 { left: 10%; top: 50%; animation-duration: 22s; animation-delay: -9s;  font-size: 1rem; }
-        .particle-7 { left: 55%; top: 45%; animation-duration: 11s; animation-delay: -4s;  font-size: 1.6rem; }
-
-        @keyframes float {
-          0%   { transform: translateY(0px) rotate(0deg);   opacity: 0.08; }
-          50%  { opacity: 0.18; }
-          100% { transform: translateY(-80px) rotate(20deg); opacity: 0.08; }
-        }
-
-        /* Card */
-        .card {
-          background: rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 28px;
-          padding: 40px 36px;
-          width: 100%;
-          max-width: 420px;
-          position: relative;
-          z-index: 1;
-          box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4);
-        }
-
-        .card-header { text-align: center; margin-bottom: 28px; }
-
-        .logo {
-          font-size: 3.5rem;
-          display: block;
-          margin-bottom: 8px;
-          filter: drop-shadow(0 4px 12px rgba(255, 200, 0, 0.4));
-          animation: bounce-logo 2s ease-in-out infinite;
-        }
-        @keyframes bounce-logo {
-          0%, 100% { transform: translateY(0); }
-          50%       { transform: translateY(-8px); }
-        }
-
-        .title {
-          font-size: 2rem;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: -0.5px;
-        }
-        .subtitle {
-          font-size: 0.95rem;
-          color: rgba(255,255,255,0.55);
-          margin-top: 4px;
-        }
-
-        /* Toggle */
-        .mode-toggle {
-          display: flex;
-          background: rgba(0,0,0,0.25);
-          border-radius: 14px;
-          padding: 4px;
-          margin-bottom: 20px;
-          gap: 4px;
-        }
-        .toggle-btn {
-          flex: 1;
-          padding: 10px;
-          border: none;
-          border-radius: 10px;
-          font-size: 0.9rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-          background: transparent;
-          color: rgba(255,255,255,0.5);
-        }
-        .toggle-btn.active {
-          background: #FFD700;
-          color: #1a1a4e;
-          box-shadow: 0 4px 12px rgba(255, 215, 0, 0.35);
-        }
-
-        /* Google */
-        .google-btn {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 13px;
-          background: rgba(255,255,255,0.95);
-          color: #333;
-          border: none;
-          border-radius: 14px;
-          font-size: 0.95rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-bottom: 16px;
-        }
-        .google-btn:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
-        .google-btn:active { transform: translateY(0); }
-        .google-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-        /* Divider */
-        .divider {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 16px;
-          color: rgba(255,255,255,0.3);
-          font-size: 0.85rem;
-        }
-        .divider::before, .divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background: rgba(255,255,255,0.12);
-        }
-
-        /* Fields */
-        .field { margin-bottom: 14px; }
-        .field label {
-          display: block;
-          font-size: 0.85rem;
-          font-weight: 700;
-          color: rgba(255,255,255,0.7);
-          margin-bottom: 6px;
-        }
-        .field .hint { font-weight: 400; opacity: 0.7; }
-
-        .field input {
-          width: 100%;
-          padding: 13px 16px;
-          background: rgba(255,255,255,0.08);
-          border: 1.5px solid rgba(255,255,255,0.12);
-          border-radius: 12px;
-          color: #fff;
-          font-size: 0.95rem;
-          font-family: inherit;
-          transition: border-color 0.2s, background 0.2s;
-          outline: none;
-        }
-        .field input::placeholder { color: rgba(255,255,255,0.3); }
-        .field input:focus {
-          border-color: #FFD700;
-          background: rgba(255,255,255,0.12);
-        }
-
-        .pass-wrapper { position: relative; }
-        .eye-btn {
-          position: absolute;
-          right: 14px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          color: rgba(255,255,255,0.4);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          transition: color 0.2s;
-          padding: 0;
-        }
-        .eye-btn:hover { color: rgba(255,255,255,0.8); }
-
-        /* Mensajes */
-        .msg {
-          padding: 12px 16px;
-          border-radius: 10px;
-          font-size: 0.88rem;
-          margin-bottom: 14px;
-          font-weight: 600;
-          line-height: 1.4;
-        }
-        .msg-error  { background: rgba(239, 68, 68, 0.2);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
-        .msg-success{ background: rgba(34, 197, 94, 0.2);  color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
-
-        /* Submit */
-        .submit-btn {
-          width: 100%;
-          padding: 15px;
-          background: linear-gradient(135deg, #FFD700, #FF8C00);
-          color: #1a1a4e;
-          border: none;
-          border-radius: 14px;
-          font-size: 1rem;
-          font-weight: 800;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-top: 4px;
-          letter-spacing: 0.3px;
-          box-shadow: 0 6px 20px rgba(255, 140, 0, 0.35);
-        }
-        .submit-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 28px rgba(255, 140, 0, 0.45);
-        }
-        .submit-btn:active:not(:disabled) { transform: translateY(0); }
-        .submit-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-          box-shadow: none;
-        }
-
-        @media (max-width: 480px) {
-          .card { padding: 32px 24px; border-radius: 24px; }
-          .title { font-size: 1.7rem; }
-        }
-      `}</style>
-
-
-      <div className="page">
-        <Particles />
-        <Suspense fallback={null}>
-          <AuthForm />
-        </Suspense>
-      </div>
-    </>
+    <div className="min-h-screen bg-linear-to-br from-[#1a1a4e] via-[#16213e] to-[#0f3460] flex items-center justify-center p-6 relative overflow-hidden">
+      <Particles />
+      <Suspense fallback={null}>
+        <AuthForm />
+      </Suspense>
+    </div>
   );
 }
 
