@@ -243,7 +243,7 @@ export default function LandingPage() {
         <div className="relative mt-12 w-full max-w-[320px] animate-[fadeUp_1s_ease_0.3s_both]">
           <div className="relative rounded-3xl overflow-hidden border border-white/8 shadow-[0_32px_80px_rgba(0,0,0,0.6)] aspect-9/13 bg-[#0d0d18] flex flex-col items-center justify-center gap-4">
             <video
-              src="/gameplay.mp4"
+              src="/MathApp.mp4"
               autoPlay
               loop
               muted
