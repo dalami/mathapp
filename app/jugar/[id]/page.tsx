@@ -90,6 +90,8 @@ export default function JugarPage() {
   const livesRef = useRef(5);
   const phaseRef = useRef<GamePhase>("loading");
   const fetchedRef = useRef(false);
+  // ── FIX: ref para evitar stale closure en handleFinish ──
+  const nextLevelIdRef = useRef<string | null>(null);
 
   const restoreLives = useRestoreLives(user?.id);
 
@@ -176,18 +178,32 @@ export default function JugarPage() {
         const typedQs = qs as Question[];
         const selected = shuffle(typedQs).slice(0, typedLvl.questions_count);
 
-        const { data: nextLvl } = await supabase
+        // ── FIX: query robusto sin .single() ──
+        const { data: nextLvls } = await supabase
           .from("levels")
-          .select("id")
+          .select("id, order_index")
           .eq("island_id", typedLvl.island_id)
-          .eq("order_index", typedLvl.order_index + 1)
-          .single();
+          .gt("order_index", typedLvl.order_index)
+          .order("order_index", { ascending: true })
+          .limit(1);
 
+        const nextLvl = nextLvls?.[0] ?? null;
+        console.log(
+          "🎯 nivel actual:",
+          typedLvl.id,
+          "order_index:",
+          typedLvl.order_index,
+          "island_id:",
+          typedLvl.island_id,
+        );
+        console.log("➡️ siguiente nivel encontrado:", nextLvl);
         errorsRef.current = 0;
         livesRef.current = currentLives;
 
         setLevel(typedLvl);
         setQuestions(selected);
+        // ── FIX: actualizar ref Y estado juntos ──
+        nextLevelIdRef.current = nextLvl?.id ?? null;
         setNextLevelId(nextLvl?.id ?? null);
         setCurrentIdx(0);
         setLives(currentLives);
@@ -213,9 +229,7 @@ export default function JugarPage() {
     }
 
     fetchLevel();
-    return () => {
-      fetchedRef.current = false;
-    };
+    
   }, [user, levelId, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Shuffle opciones ────────────────────────────────────
@@ -267,6 +281,8 @@ export default function JugarPage() {
         }
       }
 
+      console.log("⭐ earnedStars:", earnedStars, "va a setear countdown?", earnedStars > 0);
+
       if (earnedStars > 0) {
         setCountdown(3);
         let secs = 3;
@@ -276,10 +292,23 @@ export default function JugarPage() {
           if (secs <= 0 && countdownRef.current)
             clearInterval(countdownRef.current);
         }, 1000);
-        autoAdvanceRef.current = setTimeout(() => {
-          if (nextLevelId) router.replace(`/jugar/${nextLevelId}`);
-          else router.replace("/mapa");
-        }, 3500);
+        console.log(
+          "🏁 handleFinish - earnedStars:",
+          earnedStars,
+          "nextLevelIdRef.current:",
+          nextLevelIdRef.current,
+        );
+
+        // ── FIX: usar ref en lugar del estado para evitar stale closure ──
+autoAdvanceRef.current = setTimeout(() => {
+  const dest = nextLevelIdRef.current;
+  console.log("⏰ setTimeout ejecutado, dest:", dest);
+  if (dest) {
+    window.location.href = `/jugar/${dest}`;
+  } else {
+    window.location.href = `/mapa`;
+  }
+}, 3500);
       }
     },
     [
@@ -290,7 +319,6 @@ export default function JugarPage() {
       user,
       levelId,
       refreshProfile,
-      nextLevelId,
       router,
     ],
   );
@@ -432,6 +460,9 @@ export default function JugarPage() {
     return <LoadingScreen />;
   }
 
+  const question = questions[currentIdx];
+  if (!question) return <LoadingScreen />;
+
   if (phase === "finished") {
     return (
       <FinishScreen
@@ -448,7 +479,6 @@ export default function JugarPage() {
     );
   }
 
-  const question = questions[currentIdx];
   const progress = (currentIdx / questions.length) * 100;
   const isTwoOptions = question.options.length === 2;
   const timerPct =
