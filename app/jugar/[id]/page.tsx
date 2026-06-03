@@ -63,17 +63,14 @@ export default function JugarPage() {
   const params = useParams();
   const levelId = params.id as string;
   const { user, profile, refreshProfile } = useAuth();
-  const [coins, setCoins] = useState(profile?.coins ?? 0);
-  const [livesResetAt, setLivesResetAt] = useState<string | null>(
-    profile?.lives_reset_at ?? null,
-  );
-  const restoreLives = useRestoreLives(user?.id);
 
   const [level, setLevel] = useState<LevelInfo | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [phase, setPhase] = useState<GamePhase>("loading");
   const [currentIdx, setCurrentIdx] = useState(0);
   const [lives, setLives] = useState(5);
+  const [coins, setCoins] = useState(0);
+  const [livesResetAt, setLivesResetAt] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<FeedbackType | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -92,17 +89,16 @@ export default function JugarPage() {
   const errorsRef = useRef(0);
   const livesRef = useRef(5);
   const phaseRef = useRef<GamePhase>("loading");
+  const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-  useEffect(() => {
-    livesRef.current = lives;
-  }, [lives]);
+  const restoreLives = useRestoreLives(user?.id);
+
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { livesRef.current = lives; }, [lives]);
 
   const accentColor = ISLAND_COLORS[level?.island_id ?? 1] ?? "#4CAF50";
 
-  // ─── Limpiar todos los timers al desmontar ───────────────
+  // ─── Limpiar timers al desmontar ─────────────────────────
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -112,13 +108,14 @@ export default function JugarPage() {
     };
   }, []);
 
-  // ─── Cargar nivel y preguntas ────────────────────────────
+  // ─── Cargar nivel ────────────────────────────────────────
   useEffect(() => {
-    if (!user || !levelId) return;
-    if (!profile) return;
+    if (!user || !levelId || !profile) return;
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
     async function fetchLevel() {
       try {
-        // Restaurar vidas sin bloquear si falla
         let currentLives = profile?.lives ?? 5;
         let currentResetAt: string | null = profile?.lives_reset_at ?? null;
 
@@ -131,20 +128,18 @@ export default function JugarPage() {
         } catch {
           // Si falla restore, usamos datos del perfil
         }
-        
+
         if (currentLives <= 0) {
           setLives(0);
           setCoins(profile?.coins ?? 0);
           setLivesResetAt(currentResetAt);
-          setPhase("no_lives" as GamePhase);
+          setPhase("no_lives");
           return;
         }
 
         const { data: lvl, error: lvlErr } = await supabase
           .from("levels")
-          .select(
-            "id, name, icon, is_boss, time_limit_secs, questions_count, island_id, order_index",
-          )
+          .select("id, name, icon, is_boss, time_limit_secs, questions_count, island_id, order_index")
           .eq("id", levelId)
           .single();
 
@@ -161,12 +156,7 @@ export default function JugarPage() {
           .order("difficulty");
 
         if (qsErr || !qs || qs.length === 0) {
-          console.error(
-            "Error cargando preguntas:",
-            qsErr,
-            "cantidad:",
-            qs?.length,
-          );
+          console.error("Error cargando preguntas:", qsErr, "cantidad:", qs?.length);
           router.replace("/mapa");
           return;
         }
@@ -175,7 +165,6 @@ export default function JugarPage() {
         const typedQs = qs as Question[];
         const selected = shuffle(typedQs).slice(0, typedLvl.questions_count);
 
-        // Buscar el siguiente nivel de la misma isla
         const { data: nextLvl } = await supabase
           .from("levels")
           .select("id")
@@ -184,13 +173,15 @@ export default function JugarPage() {
           .single();
 
         errorsRef.current = 0;
-        livesRef.current = profile?.lives ?? 5;
+        livesRef.current = currentLives;
 
         setLevel(typedLvl);
         setQuestions(selected);
         setNextLevelId(nextLvl?.id ?? null);
         setCurrentIdx(0);
-        setLives(profile?.lives ?? 5);
+        setLives(currentLives);
+        setCoins(profile?.coins ?? 0);
+        setLivesResetAt(currentResetAt);
         setFeedback(null);
         setSelectedOption(null);
         setStars(0);
@@ -211,9 +202,10 @@ export default function JugarPage() {
     }
 
     fetchLevel();
-  }, [user, levelId, profile?.lives, router]);
+    return () => { fetchedRef.current = false; };
+  }, [user, levelId, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Shuffle opciones al cambiar pregunta ────────────────
+  // ─── Shuffle opciones ────────────────────────────────────
   useEffect(() => {
     if (questions[currentIdx]) {
       const opts = shuffle(questions[currentIdx].options);
@@ -223,166 +215,117 @@ export default function JugarPage() {
   }, [currentIdx, questions]);
 
   // ─── Finalizar nivel ─────────────────────────────────────
-  const handleFinish = useCallback(
-    async (finalErrors: number) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (feedbackRef.current) clearTimeout(feedbackRef.current);
-      if (isSubmitting) return;
+  const handleFinish = useCallback(async (finalErrors: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (feedbackRef.current) clearTimeout(feedbackRef.current);
+    if (isSubmitting) return;
 
-      setIsSubmitting(true);
-      setPhase("finished");
+    setIsSubmitting(true);
+    setPhase("finished");
 
-      const earnedStars = calcStars(finalErrors, questions.length);
-      const timeSpent = level?.time_limit_secs
-        ? level.time_limit_secs - (timeLeft ?? 0)
-        : 0;
+    const earnedStars = calcStars(finalErrors, questions.length);
+    const timeSpent = level?.time_limit_secs ? level.time_limit_secs - (timeLeft ?? 0) : 0;
+    setStars(earnedStars);
 
-      setStars(earnedStars);
-
-      if (user) {
-        try {
-          const { data } = await supabase.rpc("submit_level_result", {
-            p_user_id: user.id,
-            p_level_id: levelId,
-            p_stars: earnedStars,
-            p_errors: finalErrors,
-            p_time_seconds: timeSpent,
-          });
-          if (data) {
-            const result = data as SubmitResult;
-            setCoinsEarned(result.coins_earned ?? 0);
-            setIsNewBest(result.is_new_best ?? false);
-          }
-        } catch (e) {
-          console.error("Error guardando resultado:", e);
+    if (user) {
+      try {
+        const { data } = await supabase.rpc("submit_level_result", {
+          p_user_id: user.id,
+          p_level_id: levelId,
+          p_stars: earnedStars,
+          p_errors: finalErrors,
+          p_time_seconds: timeSpent,
+        });
+        if (data) {
+          const result = data as SubmitResult;
+          setCoinsEarned(result.coins_earned ?? 0);
+          setIsNewBest(result.is_new_best ?? false);
         }
-
-        try {
-          await refreshProfile();
-        } catch (e) {
-          console.error("Error actualizando perfil:", e);
-        }
+      } catch (e) {
+        console.error("Error guardando resultado:", e);
       }
-
-      // Auto-avance si ganó estrellas y hay siguiente nivel
-      if (earnedStars > 0) {
-        setCountdown(3);
-        let secs = 3;
-        countdownRef.current = setInterval(() => {
-          secs -= 1;
-          setCountdown(secs);
-          if (secs <= 0) {
-            if (countdownRef.current) clearInterval(countdownRef.current);
-          }
-        }, 1000);
-
-        autoAdvanceRef.current = setTimeout(() => {
-          if (nextLevelId) {
-            router.replace(`/jugar/${nextLevelId}`);
-          } else {
-            router.replace("/mapa");
-          }
-        }, 3500);
+      try {
+        await refreshProfile();
+      } catch (e) {
+        console.error("Error actualizando perfil:", e);
       }
-    },
-    [
-      isSubmitting,
-      questions.length,
-      level,
-      timeLeft,
-      user,
-      levelId,
-      refreshProfile,
-      nextLevelId,
-      router,
-    ],
-  );
+    }
 
-  // ─── Ref para handleFinish ────────────────────────────────
+    if (earnedStars > 0) {
+      setCountdown(3);
+      let secs = 3;
+      countdownRef.current = setInterval(() => {
+        secs -= 1;
+        setCountdown(secs);
+        if (secs <= 0 && countdownRef.current) clearInterval(countdownRef.current);
+      }, 1000);
+      autoAdvanceRef.current = setTimeout(() => {
+        if (nextLevelId) router.replace(`/jugar/${nextLevelId}`);
+        else router.replace("/mapa");
+      }, 3500);
+    }
+  }, [isSubmitting, questions.length, level, timeLeft, user, levelId, refreshProfile, nextLevelId, router]);
+
   const handleFinishRef = useRef(handleFinish);
-  useEffect(() => {
-    handleFinishRef.current = handleFinish;
-  }, [handleFinish]);
+  useEffect(() => { handleFinishRef.current = handleFinish; }, [handleFinish]);
 
   // ─── Timer ───────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "playing" || timeLeft === null) return;
-    if (timeLeft <= 0) {
-      handleFinishRef.current(errorsRef.current);
-      return;
-    }
-    timerRef.current = setTimeout(() => {
-      setTimeLeft((t) => (t !== null ? t - 1 : null));
-    }, 1000);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    if (timeLeft <= 0) { handleFinishRef.current(errorsRef.current); return; }
+    timerRef.current = setTimeout(() => setTimeLeft((t) => t !== null ? t - 1 : null), 1000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [timeLeft, phase]);
 
-  // ─── Avanzar a la siguiente pregunta ─────────────────────
-  const advanceQuestion = useCallback(
-    (newErrors: number, correct: boolean) => {
-      const isLast = currentIdx >= questions.length - 1;
-      const noLives = !correct && livesRef.current <= 0;
-
-      if (isLast || noLives) {
-        handleFinishRef.current(newErrors);
-      } else {
-        setCurrentIdx((i) => i + 1);
-        setSelectedOption(null);
-        setFeedback(null);
-        setPhase("playing");
-      }
-    },
-    [currentIdx, questions.length],
-  );
+  // ─── Avanzar pregunta ────────────────────────────────────
+  const advanceQuestion = useCallback((newErrors: number, correct: boolean) => {
+    const isLast = currentIdx >= questions.length - 1;
+    const noLives = !correct && livesRef.current <= 0;
+    if (isLast || noLives) {
+      handleFinishRef.current(newErrors);
+    } else {
+      setCurrentIdx((i) => i + 1);
+      setSelectedOption(null);
+      setFeedback(null);
+      setPhase("playing");
+    }
+  }, [currentIdx, questions.length]);
 
   // ─── Responder ───────────────────────────────────────────
-  const handleAnswer = useCallback(
-    async (option: string) => {
-      if (phaseRef.current !== "playing" || selectedOption) return;
-      if (timerRef.current) clearTimeout(timerRef.current);
+  const handleAnswer = useCallback(async (option: string) => {
+    if (phaseRef.current !== "playing" || selectedOption) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
 
-      const question = questions[currentIdx];
-      const isCorrect = option === question.correct_answer;
+    const question = questions[currentIdx];
+    const isCorrect = option === question.correct_answer;
 
-      setSelectedOption(option);
-      setFeedback(isCorrect ? "correct" : "wrong");
-      setPhase("feedback");
+    setSelectedOption(option);
+    setFeedback(isCorrect ? "correct" : "wrong");
+    setPhase("feedback");
 
-      let newErrors = errorsRef.current;
+    let newErrors = errorsRef.current;
 
-      if (!isCorrect) {
-        newErrors += 1;
-        errorsRef.current = newErrors;
-
-        if (user) {
-          try {
-            const { data } = await supabase.rpc("spend_life", {
-              p_user_id: user.id,
-            });
-            const newLives =
-              typeof data === "number"
-                ? data
-                : Math.max(0, livesRef.current - 1);
-            livesRef.current = newLives;
-            setLives(newLives);
-          } catch {
-            const newLives = Math.max(0, livesRef.current - 1);
-            livesRef.current = newLives;
-            setLives(newLives);
-          }
+    if (!isCorrect) {
+      newErrors += 1;
+      errorsRef.current = newErrors;
+      if (user) {
+        try {
+          const { data } = await supabase.rpc("spend_life", { p_user_id: user.id });
+          const newLives = typeof data === "number" ? data : Math.max(0, livesRef.current - 1);
+          livesRef.current = newLives;
+          setLives(newLives);
+        } catch {
+          const newLives = Math.max(0, livesRef.current - 1);
+          livesRef.current = newLives;
+          setLives(newLives);
         }
       }
+    }
 
-      feedbackRef.current = setTimeout(() => {
-        advanceQuestion(newErrors, isCorrect);
-      }, 1400);
-    },
-    [selectedOption, currentIdx, questions, user, advanceQuestion],
-  );
+    feedbackRef.current = setTimeout(() => advanceQuestion(newErrors, isCorrect), 1400);
+  }, [selectedOption, currentIdx, questions, user, advanceQuestion]);
 
-  // ─── Reintentar nivel ────────────────────────────────────
+  // ─── Reintentar ──────────────────────────────────────────
   const handleRetry = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (feedbackRef.current) clearTimeout(feedbackRef.current);
@@ -390,12 +333,11 @@ export default function JugarPage() {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
 
     errorsRef.current = 0;
-    livesRef.current = profile?.lives ?? 5;
+    livesRef.current = lives;
 
     const reshuffled = shuffle(questions);
     setQuestions(reshuffled);
     setCurrentIdx(0);
-    setLives(profile?.lives ?? 5);
     setFeedback(null);
     setSelectedOption(null);
     setStars(0);
@@ -405,9 +347,9 @@ export default function JugarPage() {
     setCountdown(null);
     if (level?.time_limit_secs) setTimeLeft(level.time_limit_secs);
     setPhase("playing");
-  }, [questions, profile?.lives, level]);
+  }, [questions, lives, level]);
 
-  // ─── Salir al mapa (cancela auto-avance) ─────────────────
+  // ─── Salir ───────────────────────────────────────────────
   const handleExit = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (feedbackRef.current) clearTimeout(feedbackRef.current);
@@ -416,11 +358,7 @@ export default function JugarPage() {
     router.replace("/mapa");
   }, [router]);
 
-  // ─── Renders ─────────────────────────────────────────────
-  if (phase === "loading" || !level || questions.length === 0) {
-    return <LoadingScreen />;
-  }
-
+  // ─── RENDERS — no_lives va PRIMERO ───────────────────────
   if (phase === "no_lives" && user) {
     return (
       <>
@@ -433,11 +371,16 @@ export default function JugarPage() {
           onLivesRestored={(newLives, newCoins) => {
             setLives(newLives);
             setCoins(newCoins);
-            setPhase("loading");
+            fetchedRef.current = false;
+            router.replace(`/jugar/${levelId}`);
           }}
         />
       </>
     );
+  }
+
+  if (phase === "loading" || !level || questions.length === 0) {
+    return <LoadingScreen />;
   }
 
   if (phase === "finished") {
@@ -459,36 +402,23 @@ export default function JugarPage() {
   const question = questions[currentIdx];
   const progress = (currentIdx / questions.length) * 100;
   const isTwoOptions = question.options.length === 2;
-  const timerPct =
-    level.time_limit_secs && timeLeft !== null
-      ? (timeLeft / level.time_limit_secs) * 100
-      : 100;
-  const timerColor =
-    timeLeft !== null && timeLeft < 10
-      ? "#EF5350"
-      : timeLeft !== null && timeLeft < 20
-        ? "#FFA726"
-        : accentColor;
+  const timerPct = level.time_limit_secs && timeLeft !== null
+    ? (timeLeft / level.time_limit_secs) * 100 : 100;
+  const timerColor = timeLeft !== null && timeLeft < 10 ? "#EF5350"
+    : timeLeft !== null && timeLeft < 20 ? "#FFA726" : accentColor;
 
   return (
     <>
       <style>{CSS}</style>
       <div className="game-root">
         <header className="game-header">
-          <button className="exit-btn" onClick={handleExit} aria-label="Salir">
-            ✕
-          </button>
+          <button className="exit-btn" onClick={handleExit} aria-label="Salir">✕</button>
           <div className="progress-wrap">
-            <div
-              className="progress-fill"
-              style={{ width: `${progress}%`, background: accentColor }}
-            />
+            <div className="progress-fill" style={{ width: `${progress}%`, background: accentColor }} />
           </div>
           <div className="lives-row">
             {[1, 2, 3, 4, 5].map((i) => (
-              <span key={i} className={`life ${i > lives ? "lost" : ""}`}>
-                ❤️
-              </span>
+              <span key={i} className={`life ${i > lives ? "lost" : ""}`}>❤️</span>
             ))}
           </div>
         </header>
@@ -497,21 +427,14 @@ export default function JugarPage() {
           <div className="timer-row">
             <span className="timer-icon">⏱</span>
             <div className="timer-track">
-              <div
-                className="timer-fill"
-                style={{ width: `${timerPct}%`, background: timerColor }}
-              />
+              <div className="timer-fill" style={{ width: `${timerPct}%`, background: timerColor }} />
             </div>
-            <span className="timer-num" style={{ color: timerColor }}>
-              {timeLeft}s
-            </span>
+            <span className="timer-num" style={{ color: timerColor }}>{timeLeft}s</span>
           </div>
         )}
 
         <div className="question-card">
-          <div className="q-counter">
-            Pregunta {currentIdx + 1} / {questions.length}
-          </div>
+          <div className="q-counter">Pregunta {currentIdx + 1} / {questions.length}</div>
           <div className="q-body">{question.body}</div>
         </div>
 
@@ -529,14 +452,10 @@ export default function JugarPage() {
                 className={cls}
                 disabled={!!selectedOption}
                 onClick={() => handleAnswer(option)}
-                style={
-                  !selectedOption
-                    ? {
-                        borderColor: `${accentColor}44`,
-                        borderBottomColor: `${accentColor}88`,
-                      }
-                    : undefined
-                }
+                style={!selectedOption ? {
+                  borderColor: `${accentColor}44`,
+                  borderBottomColor: `${accentColor}88`,
+                } : undefined}
               >
                 {option}
               </button>
@@ -546,24 +465,13 @@ export default function JugarPage() {
 
         {feedback && (
           <div className={`feedback-banner ${feedback}`}>
-            <span className="fb-icon">
-              {feedback === "correct" ? "✅" : "❌"}
-            </span>
-            <span>
-              {feedback === "correct"
-                ? "¡Correcto! 🎉"
-                : `Casi. Era: ${question.correct_answer}`}
-            </span>
+            <span className="fb-icon">{feedback === "correct" ? "✅" : "❌"}</span>
+            <span>{feedback === "correct" ? "¡Correcto! 🎉" : `Casi. Era: ${question.correct_answer}`}</span>
           </div>
         )}
 
         {phase === "feedback" && (
-          <button
-            className="skip-btn"
-            onClick={() =>
-              advanceQuestion(errorsRef.current, feedback === "correct")
-            }
-          >
+          <button className="skip-btn" onClick={() => advanceQuestion(errorsRef.current, feedback === "correct")}>
             Continuar →
           </button>
         )}
@@ -574,25 +482,12 @@ export default function JugarPage() {
 
 // ─── Pantalla de resultado ────────────────────────────────────
 function FinishScreen({
-  stars,
-  coinsEarned,
-  isNewBest,
-  levelName,
-  accentColor,
-  nextLevelId,
-  countdown,
-  onBack,
-  onRetry,
+  stars, coinsEarned, isNewBest, levelName, accentColor,
+  nextLevelId, countdown, onBack, onRetry,
 }: {
-  stars: number;
-  coinsEarned: number;
-  isNewBest: boolean;
-  levelName: string;
-  accentColor: string;
-  nextLevelId: string | null;
-  countdown: number | null;
-  onBack: () => void;
-  onRetry: () => void;
+  stars: number; coinsEarned: number; isNewBest: boolean; levelName: string;
+  accentColor: string; nextLevelId: string | null; countdown: number | null;
+  onBack: () => void; onRetry: () => void;
 }) {
   const won = stars > 0;
   return (
@@ -603,65 +498,30 @@ function FinishScreen({
           {stars === 3 ? "🏆" : stars === 2 ? "🎉" : won ? "👍" : "💪"}
         </div>
         <h1 className="finish-title" style={{ color: accentColor }}>
-          {stars === 3
-            ? "¡Perfecto!"
-            : stars === 2
-              ? "¡Muy bien!"
-              : won
-                ? "¡Lo lograste!"
-                : "¡Seguí intentando!"}
+          {stars === 3 ? "¡Perfecto!" : stars === 2 ? "¡Muy bien!" : won ? "¡Lo lograste!" : "¡Seguí intentando!"}
         </h1>
         <p className="finish-level">{levelName}</p>
-
         <div className="stars-row">
           {[1, 2, 3].map((s) => (
-            <span
-              key={s}
-              className="star"
-              style={{
-                opacity: stars >= s ? 1 : 0.18,
-                animationDelay: `${s * 0.15}s`,
-                filter: stars >= s ? "drop-shadow(0 0 8px #FFD700)" : "none",
-              }}
-            >
-              ⭐
-            </span>
+            <span key={s} className="star" style={{
+              opacity: stars >= s ? 1 : 0.18,
+              animationDelay: `${s * 0.15}s`,
+              filter: stars >= s ? "drop-shadow(0 0 8px #FFD700)" : "none",
+            }}>⭐</span>
           ))}
         </div>
-
-        {coinsEarned > 0 && (
-          <div className="coins-badge">🪙 +{coinsEarned} monedas</div>
-        )}
-        {isNewBest && (
-          <div className="best-badge">🎯 ¡Nuevo récord personal!</div>
-        )}
-
-        {/* Auto-avance countdown */}
+        {coinsEarned > 0 && <div className="coins-badge">🪙 +{coinsEarned} monedas</div>}
+        {isNewBest && <div className="best-badge">🎯 ¡Nuevo récord personal!</div>}
         {won && nextLevelId && countdown !== null && (
-          <div className="countdown-badge">
-            Siguiente nivel en {countdown}s...
-          </div>
+          <div className="countdown-badge">Siguiente nivel en {countdown}s...</div>
         )}
-
         {won && !nextLevelId && (
-          <div className="countdown-badge">
-            🏝️ ¡Isla completada! Volviendo al mapa...
-          </div>
+          <div className="countdown-badge">🏝️ ¡Isla completada! Volviendo al mapa...</div>
         )}
-
         <div className="finish-btns">
-          {/* Salir siempre disponible */}
-          <button className="btn-back-secondary" onClick={onBack}>
-            Volver al mapa 🗺️
-          </button>
-
-          {/* Reintentar solo si no ganó */}
+          <button className="btn-back-secondary" onClick={onBack}>Volver al mapa 🗺️</button>
           {!won && (
-            <button
-              className="btn-retry"
-              onClick={onRetry}
-              style={{ background: accentColor }}
-            >
+            <button className="btn-retry" onClick={onRetry} style={{ background: accentColor }}>
               Intentar de nuevo 🔄
             </button>
           )}
@@ -707,8 +567,7 @@ html, body { height: 100%; background: #0a0a0f; }
   width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
   background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
   color: rgba(255,255,255,0.6); font-size: 1rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s;
+  display: flex; align-items: center; justify-content: center; transition: background 0.15s;
 }
 .exit-btn:hover { background: rgba(255,255,255,0.15); }
 .progress-wrap { flex: 1; height: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
@@ -759,10 +618,7 @@ html, body { height: 100%; background: #0a0a0f; }
 .feedback-banner.correct { background: rgba(76,175,80,0.18); border: 1px solid #4CAF5055; color: #a5d6a7; }
 .feedback-banner.wrong   { background: rgba(239,83,80,0.18); border: 1px solid #EF535055; color: #ef9a9a; }
 .fb-icon { font-size: 1.3rem; flex-shrink: 0; }
-@keyframes slide-up {
-  from { transform: translateY(14px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
+@keyframes slide-up { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .skip-btn {
   margin: 12px auto 0; padding: 10px 24px; border-radius: 12px; border: none;
@@ -778,10 +634,7 @@ html, body { height: 100%; background: #0a0a0f; }
 .finish-level { font-size: 0.88rem; opacity: 0.45; font-weight: 700; }
 .stars-row { display: flex; gap: 14px; justify-content: center; margin: 8px 0; }
 .star { font-size: clamp(2.2rem, 6vw, 3rem); animation: star-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
-@keyframes star-pop {
-  from { transform: scale(0) rotate(-20deg); opacity: 0; }
-  to   { transform: scale(1) rotate(0);      opacity: 1; }
-}
+@keyframes star-pop { from { transform: scale(0) rotate(-20deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
 
 .coins-badge {
   display: inline-flex; align-items: center; gap: 8px;
@@ -797,13 +650,9 @@ html, body { height: 100%; background: #0a0a0f; }
   border-radius: 12px; padding: 10px 20px; font-size: 0.88rem; font-weight: 800;
   color: rgba(255,255,255,0.6); animation: pulse-fade 1s ease-in-out infinite alternate;
 }
-@keyframes pulse-fade {
-  from { opacity: 0.5; }
-  to   { opacity: 1; }
-}
+@keyframes pulse-fade { from { opacity: 0.5; } to { opacity: 1; } }
 
 .finish-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 340px; }
-
 .btn-retry, .btn-back-primary, .btn-back-secondary {
   width: 100%; padding: 18px; border-radius: 18px; border: none;
   font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 900;
@@ -812,8 +661,7 @@ html, body { height: 100%; background: #0a0a0f; }
 }
 .btn-retry:hover, .btn-back-primary:hover { transform: translateY(-2px); box-shadow: 0 7px 0 rgba(0,0,0,0.25); }
 .btn-retry:active, .btn-back-primary:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
-.btn-retry        { color: #0a0a0f; }
-.btn-back-primary { color: #0a0a0f; }
+.btn-retry { color: #0a0a0f; }
 .btn-back-secondary {
   background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6);
   border: 1px solid rgba(255,255,255,0.12); box-shadow: none;
