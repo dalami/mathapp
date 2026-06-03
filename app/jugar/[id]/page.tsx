@@ -229,7 +229,6 @@ export default function JugarPage() {
     }
 
     fetchLevel();
-    
   }, [user, levelId, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Shuffle opciones ────────────────────────────────────
@@ -281,7 +280,12 @@ export default function JugarPage() {
         }
       }
 
-      console.log("⭐ earnedStars:", earnedStars, "va a setear countdown?", earnedStars > 0);
+      console.log(
+        "⭐ earnedStars:",
+        earnedStars,
+        "va a setear countdown?",
+        earnedStars > 0,
+      );
 
       if (earnedStars > 0) {
         setCountdown(3);
@@ -300,15 +304,15 @@ export default function JugarPage() {
         );
 
         // ── FIX: usar ref en lugar del estado para evitar stale closure ──
-autoAdvanceRef.current = setTimeout(() => {
-  const dest = nextLevelIdRef.current;
-  console.log("⏰ setTimeout ejecutado, dest:", dest);
-  if (dest) {
-    window.location.href = `/jugar/${dest}`;
-  } else {
-    window.location.href = `/mapa`;
-  }
-}, 3500);
+        autoAdvanceRef.current = setTimeout(() => {
+          const dest = nextLevelIdRef.current;
+          console.log("⏰ setTimeout ejecutado, dest:", dest);
+          if (dest) {
+            window.location.href = `/jugar/${dest}`;
+          } else {
+            window.location.href = `/mapa`;
+          }
+        }, 3500);
       }
     },
     [
@@ -319,7 +323,6 @@ autoAdvanceRef.current = setTimeout(() => {
       user,
       levelId,
       refreshProfile,
-      router,
     ],
   );
 
