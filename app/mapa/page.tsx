@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { LivesPill } from "@/components/LivesBar";
 
 interface Island {
   id: number;
@@ -285,9 +286,10 @@ export default function MapaPage() {
             <div className="stat-pill">
               🪙<span style={{ color: "#FFD700" }}>{profile?.coins ?? 0}</span>
             </div>
-            <div className="stat-pill">
-              ❤️<span style={{ color: "#FF4757" }}>{profile?.lives ?? 5}</span>
-            </div>
+            <LivesPill
+              lives={profile?.lives ?? 5}
+              livesResetAt={profile?.lives_reset_at ?? null}
+            />
             <button
               className="menu-btn"
               onClick={() => setShowMenu((v) => !v)}
