@@ -26,42 +26,27 @@ export function LivesPill({
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   useEffect(() => {
-  if (!livesResetAt || lives >= MAX_LIVES) {
-    return;
-  }
-  const target = new Date(livesResetAt).getTime();
-  const update = () => setTimeLeft(Math.max(0, target - Date.now()));
-  const t = setInterval(update, 1000);
-  setTimeout(update, 0);
-  return () => clearInterval(t);
-}, [livesResetAt, lives]);
+    if (!livesResetAt || lives >= MAX_LIVES) return;
+    const target = new Date(livesResetAt).getTime();
+    const update = () => setTimeLeft(Math.max(0, target - Date.now()));
+    const t = setInterval(update, 1000);
+    setTimeout(update, 0);
+    return () => clearInterval(t);
+  }, [livesResetAt, lives]);
+
+  const livesColor =
+    lives <= 1 ? "text-[#EF5350]" : lives <= 2 ? "text-[#FFA726]" : "text-[#FF4757]";
 
   return (
     <button
       onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "rgba(255,255,255,0.07)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: 20,
-        padding: "4px 9px",
-        cursor: onClick ? "pointer" : "default",
-        fontFamily: "Nunito, sans-serif",
-        fontSize: "0.78rem",
-        fontWeight: 800,
-        color: "#fff",
-      }}
+      className="flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 font-[Nunito,sans-serif] text-xs font-extrabold text-white"
+      style={{ cursor: onClick ? "pointer" : "default" }}
     >
       <span>❤️</span>
-      <span style={{ color: lives <= 1 ? "#EF5350" : lives <= 2 ? "#FFA726" : "#FF4757" }}>
-        {lives}
-      </span>
+      <span className={livesColor}>{lives}</span>
       {lives < MAX_LIVES && timeLeft > 0 && (
-        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.68rem" }}>
-          {msToMMSS(timeLeft)}
-        </span>
+        <span className="text-white/40 text-[0.68rem]">{msToMMSS(timeLeft)}</span>
       )}
     </button>
   );
@@ -120,37 +105,35 @@ export function NoLivesModal({
   const canBuy = localCoins >= 100;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <div style={styles.bigEmoji}>💔</div>
-        <h2 style={styles.modalTitle}>¡Sin vidas!</h2>
-        <p style={styles.modalSub}>
+    <div className="fixed inset-0 z-200 bg-black/85 backdrop-blur-sm flex items-center justify-center p-5">
+      <div className="bg-[#1a1a25] border border-white/10 rounded-[28px] px-6 py-8 w-[min(400px,100%)] flex flex-col items-center gap-4 text-center font-[Nunito,sans-serif] text-white">
+
+        <div className="text-[3.5rem] leading-none">💔</div>
+
+        <h2 className="font-[FredokaOne,sans-serif] text-[1.8rem] font-normal text-[#EF5350] m-0">
+          ¡Sin vidas!
+        </h2>
+
+        <p className="text-[0.88rem] text-white/50 font-bold m-0">
           Necesitás esperar o usar monedas para seguir jugando.
         </p>
 
-        <div style={styles.regenBox}>
-          <div style={styles.regenLabel}>Próxima vida gratis en</div>
-          <div style={styles.regenTimer}>
+        <div className="bg-white/5 border border-white/8 rounded-2xl px-6 py-4 w-full flex flex-col items-center gap-2">
+          <div className="text-[0.78rem] text-white/40 font-bold uppercase tracking-[0.08em]">
+            Próxima vida gratis en
+          </div>
+          <div className="font-[FredokaOne,sans-serif] text-[2.2rem] text-[#FFD700] tracking-wider">
             {timeLeft > 0 ? msToMMSS(timeLeft) : "¡Lista!"}
           </div>
-          <div style={styles.livesIcons}>
+          <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map((i) => (
-              <span
-                key={i}
-                style={{ fontSize: "1.4rem", opacity: 0.2, filter: "grayscale(1)" }}
-              >
-                ❤️
-              </span>
+              <span key={i} className="text-[1.4rem] opacity-20 grayscale">❤️</span>
             ))}
           </div>
         </div>
 
         <button
-          style={{
-            ...styles.buyBtn,
-            opacity: canBuy && !buying ? 1 : 0.45,
-            cursor: canBuy && !buying ? "pointer" : "not-allowed",
-          }}
+          className="w-full px-5 py-4 rounded-2xl border border-[rgba(255,215,0,0.3)] bg-[rgba(255,215,0,0.1)] text-[#FFD700] font-[Nunito,sans-serif] text-[0.92rem] font-extrabold transition-colors duration-150 disabled:opacity-45 disabled:cursor-not-allowed"
           disabled={!canBuy || buying}
           onClick={handleBuyWithCoins}
         >
@@ -158,7 +141,7 @@ export function NoLivesModal({
         </button>
 
         <button
-          style={styles.adBtn}
+          className="w-full px-5 py-4 rounded-2xl border border-[rgba(100,180,255,0.25)] bg-[rgba(41,182,246,0.08)] text-[#4FC3F7] font-[Nunito,sans-serif] text-[0.92rem] font-extrabold cursor-pointer transition-colors duration-150 hover:bg-[rgba(41,182,246,0.14)]"
           onClick={() => {
             // TODO: rewarded ad — por ahora da 1 vida gratis
             onLivesRestored(1, localCoins);
@@ -167,7 +150,10 @@ export function NoLivesModal({
           📺 Ver un video y ganar 1 vida
         </button>
 
-        <button style={styles.closeBtn} onClick={onClose}>
+        <button
+          className="w-full py-3.5 rounded-2xl border border-white/10 bg-white/6 text-white/50 font-[Nunito,sans-serif] text-[0.88rem] font-bold cursor-pointer transition-colors duration-150 hover:bg-white/10"
+          onClick={onClose}
+        >
           Volver al mapa 🗺️
         </button>
       </div>
@@ -185,114 +171,3 @@ export function useRestoreLives(userId: string | undefined) {
 
   return restore;
 }
-
-// ─── Estilos ──────────────────────────────────────────────────
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 200,
-    background: "rgba(0,0,0,0.85)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    backdropFilter: "blur(8px)",
-  },
-  modal: {
-    background: "#1a1a25",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: 28,
-    padding: "32px 24px",
-    width: "min(400px, 100%)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 16,
-    textAlign: "center",
-    fontFamily: "Nunito, sans-serif",
-    color: "#fff",
-  },
-  bigEmoji: {
-    fontSize: "3.5rem",
-    lineHeight: 1,
-  },
-  modalTitle: {
-    fontFamily: "Fredoka One, sans-serif",
-    fontSize: "1.8rem",
-    fontWeight: 400,
-    color: "#EF5350",
-    margin: 0,
-  },
-  modalSub: {
-    fontSize: "0.88rem",
-    color: "rgba(255,255,255,0.5)",
-    fontWeight: 700,
-    margin: 0,
-  },
-  regenBox: {
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    padding: "16px 24px",
-    width: "100%",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 8,
-  },
-  regenLabel: {
-    fontSize: "0.78rem",
-    color: "rgba(255,255,255,0.4)",
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-  },
-  regenTimer: {
-    fontFamily: "Fredoka One, sans-serif",
-    fontSize: "2.2rem",
-    color: "#FFD700",
-    letterSpacing: "0.05em",
-  },
-  livesIcons: {
-    display: "flex",
-    gap: 6,
-  },
-  buyBtn: {
-    width: "100%",
-    padding: "15px 20px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,215,0,0.3)",
-    background: "rgba(255,215,0,0.1)",
-    color: "#FFD700",
-    fontFamily: "Nunito, sans-serif",
-    fontSize: "0.92rem",
-    fontWeight: 800,
-    transition: "background 0.15s",
-  },
-  adBtn: {
-    width: "100%",
-    padding: "15px 20px",
-    borderRadius: 16,
-    border: "1px solid rgba(100,180,255,0.25)",
-    background: "rgba(41,182,246,0.08)",
-    color: "#4FC3F7",
-    fontFamily: "Nunito, sans-serif",
-    fontSize: "0.92rem",
-    fontWeight: 800,
-    cursor: "pointer",
-    transition: "background 0.15s",
-  },
-  closeBtn: {
-    width: "100%",
-    padding: "13px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(255,255,255,0.06)",
-    color: "rgba(255,255,255,0.5)",
-    fontFamily: "Nunito, sans-serif",
-    fontSize: "0.88rem",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-};
