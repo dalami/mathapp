@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 // ─── Números flotantes de fondo ───────────────────────────────
 const FLOAT_ITEMS = [
@@ -87,17 +86,6 @@ const STAGES = [
     islands: 8,
     levels: 80,
   },
-];
-
-// ─── Islas de primaria ────────────────────────────────────────
-const ISLANDS = [
-  { icon: "🌿", name: "Sumas y Restas", color: "#4CAF50", bg: "#0d2b0d" },
-  { icon: "💧", name: "Multiplicación", color: "#29B6F6", bg: "#0a1f2e" },
-  { icon: "🔥", name: "División", color: "#FFA726", bg: "#2b1e0a" },
-  { icon: "⚡", name: "Fracciones", color: "#EF5350", bg: "#2b0a0a" },
-  { icon: "🌙", name: "Geometría", color: "#CE93D8", bg: "#1e0a2b" },
-  { icon: "🌊", name: "Álgebra Básica", color: "#42A5F5", bg: "#0a142b" },
-  { icon: "🏔️", name: "Desafío Final", color: "#78909C", bg: "#181818" },
 ];
 
 // ─── Features ─────────────────────────────────────────────────
@@ -187,7 +175,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── NAVBAR ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-3.5 bg-[rgba(8,8,15,0.9)] backdrop-blur-xl border-b border-white/[0.06]">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-3.5 bg-[rgba(8,8,15,0.9)] backdrop-blur-xl border-b border-white/6">
         <div className="flex items-center gap-2 font-[FredokaOne,sans-serif] text-xl">
           <span className="text-2xl">🧮</span>
           <span>
@@ -198,14 +186,14 @@ export default function LandingPage() {
           <a href="#etapas" className="hover:text-white transition-colors">
             Etapas
           </a>
-          
+
           <a href="#pricing" className="hover:text-white transition-colors">
             Planes
           </a>
         </div>
         <button
           className="px-4 py-2 rounded-full bg-[#FFD700] text-[#08080f] text-sm font-black transition-all duration-150 hover:scale-105 active:scale-95 shadow-[0_4px_0_rgba(180,120,0,0.5)]"
-        onClick={() => window.location.href = "/auth"}
+          onClick={() => (window.location.href = "/auth")}
         >
           Jugar gratis →
         </button>
@@ -213,7 +201,7 @@ export default function LandingPage() {
 
       {/* ── HERO ── */}
       <section className="relative z-10 flex flex-col items-center justify-center text-center px-5 pt-28 pb-10">
-        <div className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.1] rounded-full px-4 py-1.5 text-xs font-bold text-white/50 mb-6 animate-[fadeDown_0.6s_ease_both]">
+        <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-1.5 text-xs font-bold text-white/50 mb-6 animate-[fadeDown_0.6s_ease_both]">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
           4 etapas · De primaria a universidad · Gratis para empezar
         </div>
@@ -221,7 +209,7 @@ export default function LandingPage() {
         <h1 className="font-[FredokaOne,sans-serif] text-[clamp(2.6rem,10vw,5.5rem)] leading-[1.1] mb-4 animate-[fadeDown_0.7s_ease_both]">
           Las matemáticas
           <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] via-[#FF8C00] to-[#FFD700] bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]">
+          <span className="text-transparent bg-clip-text bg-linear-to-r from-[#FFD700] via-[#FF8C00] to-[#FFD700] bg-size-[200%_100%] animate-[shimmer_3s_linear_infinite]">
             son una aventura
           </span>
         </h1>
@@ -235,7 +223,7 @@ export default function LandingPage() {
           <button
             className="px-8 py-4 rounded-2xl font-black text-[#08080f] text-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(255,215,0,0.4)] active:translate-y-0 shadow-[0_6px_0_rgba(180,120,0,0.5)]"
             style={{ background: "linear-gradient(135deg, #FFD700, #FF8C00)" }}
-           onClick={() => window.location.href = "/auth"}
+            onClick={() => (window.location.href = "/auth")}
           >
             🚀 Empezar gratis
           </button>
@@ -253,7 +241,7 @@ export default function LandingPage() {
 
         {/* ── VIDEO/GIF GAMEPLAY ── */}
         <div className="relative mt-12 w-full max-w-[320px] animate-[fadeUp_1s_ease_0.3s_both]">
-          <div className="relative rounded-3xl overflow-hidden border border-white/[0.08] shadow-[0_32px_80px_rgba(0,0,0,0.6)] aspect-[9/16] bg-[#0d0d18] flex flex-col items-center justify-center gap-4">
+          <div className="relative rounded-3xl overflow-hidden border border-white/8 shadow-[0_32px_80px_rgba(0,0,0,0.6)] aspect-9/13 bg-[#0d0d18] flex flex-col items-center justify-center gap-4">
             <video
               src="/gameplay.mp4"
               autoPlay
@@ -270,15 +258,15 @@ export default function LandingPage() {
               <br />
               próximamente
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[#08080f] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-[#08080f] via-transparent to-transparent" />
           </div>
           {/* glow */}
-          <div className="absolute inset-0 rounded-3xl bg-[#FFD700]/[0.03] blur-3xl scale-125 -z-10" />
+          <div className="absolute inset-0 rounded-3xl bg-[#FFD700]/3 blur-3xl scale-125 -z-10" />
         </div>
       </section>
 
       {/* ── STATS ── */}
-      <section className="relative z-10 px-5 py-12 border-y border-white/[0.05]">
+      <section className="relative z-10 px-5 py-12 border-y border-white/5">
         <div className="grid grid-cols-4 gap-3 max-w-sm mx-auto text-center">
           {[
             { n: 4, suffix: "", label: "Etapas" },
@@ -314,7 +302,7 @@ export default function LandingPage() {
         </div>
 
         <div className="flex flex-col gap-4 max-w-sm mx-auto">
-          {STAGES.map((stage, i) => (
+          {STAGES.map((stage) => (
             <div
               key={stage.name}
               className="relative rounded-3xl border overflow-hidden transition-all duration-200 hover:scale-[1.02]"
@@ -394,7 +382,7 @@ export default function LandingPage() {
                     style={{
                       background: `linear-gradient(135deg, ${stage.color}, ${stage.color}cc)`,
                     }}
-                    onClick={() => window.location.href = "/auth"}
+                    onClick={() => (window.location.href = "/auth")}
                   >
                     Jugar ahora 🚀
                   </button>
@@ -404,8 +392,6 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
-
-     
 
       {/* ── FEATURES ── */}
       <section id="features" className="relative z-10 px-5 py-16">
@@ -424,7 +410,7 @@ export default function LandingPage() {
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 hover:border-[#FFD700]/20 hover:bg-white/[0.05] transition-all duration-200"
+              className="bg-white/3 border border-white/[0.07] rounded-2xl p-4 hover:border-[#FFD700]/20 hover:bg-white/5 transition-all duration-200"
             >
               <div className="text-2xl mb-2">{f.icon}</div>
               <div className="font-extrabold text-sm text-white mb-1">
@@ -439,10 +425,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ── */}
-      <section
-        id="pricing"
-        className="relative z-10 px-5 py-16 bg-white/[0.015]"
-      >
+      <section id="pricing" className="relative z-10 px-5 py-16 bg-white/1.5">
         <div className="text-center mb-10">
           <div className="text-[0.7rem] font-extrabold text-[#FFD700]/60 tracking-widest uppercase mb-2">
             Planes
@@ -455,7 +438,7 @@ export default function LandingPage() {
         </div>
 
         <div className="flex flex-col gap-4 max-w-sm mx-auto">
-          <div className="bg-white/[0.03] border border-white/[0.08] rounded-3xl p-6">
+          <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
             <div className="font-[FredokaOne,sans-serif] text-xl mb-1">
               Gratis
             </div>
@@ -478,8 +461,8 @@ export default function LandingPage() {
               ))}
             </ul>
             <button
-              className="w-full py-3.5 rounded-2xl border border-white/10 bg-white/[0.05] text-white/50 font-extrabold text-sm hover:bg-white/10 transition-colors"
-             onClick={() => window.location.href = "/auth"}
+              className="w-full py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white/50 font-extrabold text-sm hover:bg-white/10 transition-colors"
+              onClick={() => (window.location.href = "/auth")}
             >
               Empezar gratis
             </button>
@@ -530,7 +513,7 @@ export default function LandingPage() {
               style={{
                 background: "linear-gradient(135deg, #FFD700, #FF8C00)",
               }}
-             onClick={() => window.location.href = "/tienda"}
+              onClick={() => (window.location.href = "/tienda")}
             >
               Obtener Pro 👑
             </button>
@@ -541,7 +524,7 @@ export default function LandingPage() {
       {/* ── CTA FINAL ── */}
       <section className="relative z-10 px-5 py-20 text-center">
         <div className="relative max-w-sm mx-auto">
-          <div className="absolute inset-0 bg-[#FFD700]/[0.04] blur-3xl rounded-full scale-150" />
+          <div className="absolute inset-0 bg-[#FFD700]/4 blur-3xl rounded-full scale-150" />
           <div className="relative">
             <div className="text-5xl mb-4 animate-[bounce_2s_ease-in-out_infinite]">
               🧮
@@ -561,7 +544,7 @@ export default function LandingPage() {
               style={{
                 background: "linear-gradient(135deg, #FFD700, #FF8C00)",
               }}
-              onClick={() => window.location.href = "/auth"}
+              onClick={() => (window.location.href = "/auth")}
             >
               🚀 Jugar gratis ahora
             </button>
@@ -570,7 +553,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="relative z-10 px-5 py-8 border-t border-white/[0.05] text-center text-white/20 text-xs font-bold">
+      <footer className="relative z-10 px-5 py-8 border-t border-white/5 text-center text-white/20 text-xs font-bold">
         <div className="flex items-center justify-center gap-2 mb-2 font-[FredokaOne,sans-serif] text-base text-white/35">
           🧮 MathApp
         </div>
