@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { NoLivesModal, useRestoreLives } from "@/components/LivesBar";
 
 interface LevelInfo {
   id: string;
@@ -32,7 +33,7 @@ interface SubmitResult {
   streak_days: number;
 }
 
-type GamePhase = "loading" | "playing" | "feedback" | "finished";
+type GamePhase = "loading" | "playing" | "feedback" | "finished" | "no_lives";
 type FeedbackType = "correct" | "wrong";
 
 const ISLAND_COLORS: Record<number, string> = {
@@ -62,6 +63,11 @@ export default function JugarPage() {
   const params = useParams();
   const levelId = params.id as string;
   const { user, profile, refreshProfile } = useAuth();
+  const [coins, setCoins] = useState(profile?.coins ?? 0);
+  const [livesResetAt, setLivesResetAt] = useState<string | null>(
+    profile?.lives_reset_at ?? null,
+  );
+  const restoreLives = useRestoreLives(user?.id);
 
   const [level, setLevel] = useState<LevelInfo | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -109,9 +115,31 @@ export default function JugarPage() {
   // ─── Cargar nivel y preguntas ────────────────────────────
   useEffect(() => {
     if (!user || !levelId) return;
-
+    if (!profile) return;
     async function fetchLevel() {
       try {
+        // Restaurar vidas sin bloquear si falla
+        let currentLives = profile?.lives ?? 5;
+        let currentResetAt: string | null = profile?.lives_reset_at ?? null;
+
+        try {
+          const restored = await restoreLives();
+          if (restored) {
+            currentLives = restored.lives;
+            currentResetAt = restored.next_regen;
+          }
+        } catch {
+          // Si falla restore, usamos datos del perfil
+        }
+        
+        if (currentLives <= 0) {
+          setLives(0);
+          setCoins(profile?.coins ?? 0);
+          setLivesResetAt(currentResetAt);
+          setPhase("no_lives" as GamePhase);
+          return;
+        }
+
         const { data: lvl, error: lvlErr } = await supabase
           .from("levels")
           .select(
@@ -391,6 +419,25 @@ export default function JugarPage() {
   // ─── Renders ─────────────────────────────────────────────
   if (phase === "loading" || !level || questions.length === 0) {
     return <LoadingScreen />;
+  }
+
+  if (phase === "no_lives" && user) {
+    return (
+      <>
+        <style>{CSS}</style>
+        <NoLivesModal
+          userId={user.id}
+          coins={coins}
+          livesResetAt={livesResetAt}
+          onClose={() => router.replace("/mapa")}
+          onLivesRestored={(newLives, newCoins) => {
+            setLives(newLives);
+            setCoins(newCoins);
+            setPhase("loading");
+          }}
+        />
+      </>
+    );
   }
 
   if (phase === "finished") {
