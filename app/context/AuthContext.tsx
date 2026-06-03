@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Carga el perfil desde Supabase y restaura vidas
   const fetchProfile = useCallback(async (userId: string) => {
     // Restaurar vidas según tiempo transcurrido
-    await supabase.rpc("restore_lives", { p_user_id: userId });
+    //await supabase.rpc("restore_lives", { p_user_id: userId });
 
     const { data, error } = await supabase
       .from("profiles")

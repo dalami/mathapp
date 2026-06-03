@@ -74,3 +74,21 @@ body {
   from { opacity: 0.5; }
   to   { opacity: 1;   }
 }
+
+@keyframes floatUp {
+  0%   { transform: translateY(0)    rotate(0deg);   opacity: var(--op, 0.06); }
+  50%  { opacity: calc(var(--op, 0.06) * 1.8); }
+  100% { transform: translateY(-80px) rotate(15deg); opacity: var(--op, 0.06); }
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
