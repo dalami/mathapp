@@ -11,12 +11,11 @@ import {
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 
-// ─── Tipos ───────────────────────────────────────────────────
 export interface Profile {
   id: string;
   display_name: string;
   avatar_id: number;
-  stage: 1 | 2 | 3 | 4;
+  stage: 0 | 1 | 2 | 3 | 4;
   plan: "free" | "pro";
   coins: number;
   lives: number;
@@ -45,65 +44,92 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-// ─── Contexto ────────────────────────────────────────────────
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ─── Provider ────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Carga el perfil desde Supabase y restaura vidas
   const fetchProfile = useCallback(async (userId: string) => {
-    // Restaurar vidas según tiempo transcurrido
-    await supabase.rpc("restore_lives", { p_user_id: userId });
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (!error && data) {
-      setProfile(data as Profile);
+    try {
+      await supabase.rpc("restore_lives", { p_user_id: userId });
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      if (!error && data) setProfile(data as Profile);
+    } catch (e) {
+      console.error("Error cargando perfil:", e);
     }
   }, []);
 
-  // Refrescar perfil desde cualquier componente (ej: después de ganar monedas)
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user.id);
   }, [user, fetchProfile]);
 
-  // Escuchar cambios de sesión
+  // ─── Limpiar sesión inválida y redirigir al login ─────────
+  const clearSession = useCallback(() => {
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setLoading(false);
+    // Limpiar cookies de Supabase del browser
+    supabase.auth.signOut().catch(() => {});
+  }, []);
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false));
+    // Cargar sesión inicial
+    supabase.auth.getSession().then(({ data: { session: s }, error }) => {
+      if (error) {
+        // Token inválido o expirado → limpiar
+        console.warn("Sesión inválida, limpiando:", error.message);
+        clearSession();
+        return;
+      }
+
+      setSession(s);
+      setUser(s?.user ?? null);
+
+      if (s?.user) {
+        fetchProfile(s.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
     });
 
+    // Escuchar cambios de sesión
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
+    } = supabase.auth.onAuthStateChange(async (event, s) => {
+      // Token inválido o sesión expirada
+      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !s)) {
+        clearSession();
+        return;
+      }
+
+      // Error de token → limpiar
+      if (!s && (event as string) === "INITIAL_SESSION") {
+        clearSession();
+        return;
+      }
+
+      setSession(s);
+      setUser(s?.user ?? null);
+
+      if (s?.user) {
+        await fetchProfile(s.user.id);
       } else {
         setProfile(null);
       }
+
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
-
-  // ─── Métodos de auth ─────────────────────────────────────
+  }, [fetchProfile, clearSession]);
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -123,7 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { full_name: displayName },
-        // Redirige después de confirmar el email
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
@@ -133,9 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     return { error: error?.message ?? null };
   };
@@ -143,6 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setUser(null);
+    setSession(null);
   };
 
   return (
@@ -164,7 +189,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── Hook ────────────────────────────────────────────────────
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth debe usarse dentro de <AuthProvider>");
