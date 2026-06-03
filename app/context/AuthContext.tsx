@@ -78,12 +78,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Escuchar cambios de sesión
   useEffect(() => {
+    let initialized = false;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false));
+        fetchProfile(session.user.id).finally(() => {
+          initialized = true;
+          setLoading(false);
+        });
       } else {
+        initialized = true;
         setLoading(false);
       }
     });
@@ -97,6 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetchProfile(session.user.id);
       } else {
         setProfile(null);
+      }
+      // Solo setea loading false si getSession todavía no lo hizo
+      if (!initialized) {
+        initialized = true;
+        setLoading(false);
       }
     });
 
