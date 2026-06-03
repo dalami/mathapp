@@ -29,14 +29,39 @@ export default async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
+  // Sin sesión intentando acceder a ruta protegida → login
   const isProtected = PROTECTED.some(p => pathname.startsWith(p));
   if (!user && isProtected) {
     return NextResponse.redirect(new URL("/auth", request.url));
   }
 
+  // Con sesión intentando acceder a /auth → verificar stage
   const isAuthOnly = AUTH_ONLY.some(p => pathname.startsWith(p));
   if (user && isAuthOnly) {
+    // Verificar si ya eligió etapa
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("stage")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.stage === 0) {
+      return NextResponse.redirect(new URL("/etapa", request.url));
+    }
     return NextResponse.redirect(new URL("/mapa", request.url));
+  }
+
+  // Con sesión en /mapa → verificar que tenga stage elegido
+  if (user && pathname.startsWith("/mapa")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("stage")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.stage === 0) {
+      return NextResponse.redirect(new URL("/etapa", request.url));
+    }
   }
 
   return supabaseResponse;
