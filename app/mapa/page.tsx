@@ -111,7 +111,13 @@ const STARS_BG = Array.from({ length: 30 }).map(() => ({
 
 export default function MapaPage() {
   const router = useRouter();
-  const { profile, user, loading: authLoading, signOut, refreshProfile } = useAuth();
+  const {
+    profile,
+    user,
+    loading: authLoading,
+    signOut,
+    refreshProfile,
+  } = useAuth();
 
   const [islands, setIslands] = useState<Island[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
@@ -128,32 +134,56 @@ export default function MapaPage() {
 
     async function fetchData() {
       setLoading(true);
-      if (!profile?.stage) { router.replace("/etapa"); return; }
+      if (!profile?.stage) {
+        router.replace("/etapa");
+        return;
+      }
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
-        supabase.from("islands").select("id,name,icon,order_index").eq("stage", profile.stage).order("order_index"),
-        supabase.from("levels").select("id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires").order("island_id").order("order_index"),
-        supabase.from("user_progress").select("level_id,stars").eq("user_id", user!.id),
+        supabase
+          .from("islands")
+          .select("id,name,icon,order_index")
+          .eq("stage", profile.stage)
+          .order("order_index"),
+        supabase
+          .from("levels")
+          .select(
+            "id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires",
+          )
+          .order("island_id")
+          .order("order_index"),
+        supabase
+          .from("user_progress")
+          .select("level_id,stars")
+          .eq("user_id", user!.id),
       ]);
 
       if (cancelled) return;
 
       const progressMap = new Map<string, number>(
-        ((progressRes.data ?? []) as ProgressRow[]).map((p) => [p.level_id, p.stars])
+        ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
+          p.level_id,
+          p.stars,
+        ]),
       );
 
       let foundCurrent = false;
-      const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map((lvl) => {
-        const stars = progressMap.get(lvl.id) ?? 0;
-        let status: Level["status"] = "locked";
-        if (stars > 0) {
-          status = "completed";
-        } else if (!foundCurrent && (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))) {
-          status = "current";
-          foundCurrent = true;
-        }
-        return { ...lvl, stars, status };
-      });
+      const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map(
+        (lvl) => {
+          const stars = progressMap.get(lvl.id) ?? 0;
+          let status: Level["status"] = "locked";
+          if (stars > 0) {
+            status = "completed";
+          } else if (
+            !foundCurrent &&
+            (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))
+          ) {
+            status = "current";
+            foundCurrent = true;
+          }
+          return { ...lvl, stars, status };
+        },
+      );
 
       if (!foundCurrent) {
         const first = processed.find((l) => l.status === "locked");
@@ -166,7 +196,9 @@ export default function MapaPage() {
     }
 
     fetchData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, profile, router]);
 
   useEffect(() => {
@@ -176,7 +208,10 @@ export default function MapaPage() {
   async function handleAvatarSelect(idx: number) {
     if (!user) return;
     setSavingAvatar(true);
-    await supabase.from("profiles").update({ avatar_id: idx + 1 }).eq("id", user.id);
+    await supabase
+      .from("profiles")
+      .update({ avatar_id: idx + 1 })
+      .eq("id", user.id);
     await refreshProfile();
     setSavingAvatar(false);
     setShowAvatars(false);
@@ -185,7 +220,9 @@ export default function MapaPage() {
   if (authLoading || loading) return <LoadingScreen />;
 
   const levelsByIsland = islands.map((island) =>
-    levels.filter((l) => l.island_id === island.id).sort((a, b) => a.order_index - b.order_index)
+    levels
+      .filter((l) => l.island_id === island.id)
+      .sort((a, b) => a.order_index - b.order_index),
   );
   const totalStars = levels.reduce((s, l) => s + l.stars, 0);
   const completedCount = levels.filter((l) => l.status === "completed").length;
@@ -195,22 +232,30 @@ export default function MapaPage() {
   return (
     <>
       {/* ── ESTRELLAS DE FONDO ── */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#0a0a0f]" aria-hidden="true">
+      <div
+        className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#0a0a0f]"
+        aria-hidden="true"
+      >
         {STARS_BG.map((s, i) => (
           <span
             key={i}
             className="absolute rounded-full bg-white/75 animate-[twinkle_ease-in-out_infinite_alternate]"
             style={{
-              left: s.left, top: s.top,
-              animationDelay: s.delay, animationDuration: s.duration,
-              width: s.size, height: s.size,
+              left: s.left,
+              top: s.top,
+              animationDelay: s.delay,
+              animationDuration: s.duration,
+              width: s.size,
+              height: s.size,
             }}
           />
         ))}
       </div>
 
-      <div className="relative z-10 min-h-dvh font-[Nunito,sans-serif] text-white flex flex-col items-center max-w-130 mx-auto" ref={topRef}>
-
+      <div
+        className="relative z-10 min-h-dvh font-[Nunito,sans-serif] text-white flex flex-col items-center max-w-130 mx-auto"
+        ref={topRef}
+      >
         {/* ── TOP BAR ── */}
         <header className="sticky top-0 z-50 w-full px-4 py-2.5 bg-[rgba(10,10,15,0.97)] border-b border-white/[0.07] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -233,12 +278,24 @@ export default function MapaPage() {
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 text-xs font-extrabold text-white">
-              🔥<span className="text-[#FF6B35]">{profile?.streak_days ?? 0}</span>
+              🔥
+              <span className="text-[#FF6B35]">
+                {profile?.streak_days ?? 0}
+              </span>
             </div>
-            <div className="flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 text-xs font-extrabold text-white">
+            <div
+              className="relative group flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 text-xs font-extrabold text-white cursor-pointer hover:bg-white/12 transition-colors"
+              onClick={() => router.push("/tienda")}
+            >
               🪙<span className="text-[#FFD700]">{profile?.coins ?? 0}</span>
+              <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-[#1a1a25] border border-white/10 text-white/70 text-[0.65rem] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none">
+                Tienda 🛒
+              </span>
             </div>
-            <LivesPill lives={profile?.lives ?? 5} livesResetAt={profile?.lives_reset_at ?? null} />
+            <LivesPill
+              lives={profile?.lives ?? 5}
+              livesResetAt={profile?.lives_reset_at ?? null}
+            />
             <button
               className="w-8 h-8 rounded-full bg-white/8 border border-white/12 text-white/70 text-lg cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-white/15 tracking-[-1px]"
               onClick={() => setShowMenu((v) => !v)}
@@ -254,21 +311,40 @@ export default function MapaPage() {
           <div className="fixed top-16 right-[max(16px,calc(50vw-244px))] z-9999 bg-[#1a1a25] border border-white/12 rounded-2xl p-1.5 min-w-47.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] animate-[fadeIn_0.15s_ease]">
             <button
               className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-white/85 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-white/8"
-              onClick={() => { setShowAvatars(true); setShowMenu(false); }}
+              onClick={() => {
+                setShowAvatars(true);
+                setShowMenu(false);
+              }}
             >
               🎭 Cambiar avatar
             </button>
             <div className="h-px bg-white/8 my-1" />
             <button
               className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-white/85 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-white/8"
-              onClick={() => { setShowMenu(false); router.push("/etapa"); }}
+              onClick={() => {
+                setShowMenu(false);
+                router.push("/etapa");
+              }}
             >
               🌍 Cambiar etapa
             </button>
             <div className="h-px bg-white/8 my-1" />
             <button
+              className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-white/85 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-white/8"
+              onClick={() => {
+                setShowMenu(false);
+                router.push("/tienda");
+              }}
+            >
+              🛒 Tienda
+            </button>
+            <div className="h-px bg-white/8 my-1" />
+            <button
               className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-[#ef9a9a] font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-[rgba(239,83,80,0.12)]"
-              onClick={async () => { await signOut(); router.replace("/auth"); }}
+              onClick={async () => {
+                await signOut();
+                router.replace("/auth");
+              }}
             >
               🚪 Cerrar sesión
             </button>
@@ -285,7 +361,9 @@ export default function MapaPage() {
               className="bg-[#1a1a25] border border-white/12 rounded-3xl p-7 flex flex-col items-center gap-5 w-[min(340px,90vw)]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="font-[FredokaOne,sans-serif] text-xl text-white">Elegí tu avatar</div>
+              <div className="font-[FredokaOne,sans-serif] text-xl text-white">
+                Elegí tu avatar
+              </div>
               <div className="grid grid-cols-3 gap-3 w-full">
                 {AVATARS.map((av, i) => (
                   <button
@@ -317,7 +395,9 @@ export default function MapaPage() {
           {islands.map((island, islandIdx) => {
             const theme = ISLAND_THEMES[island.order_index] ?? ISLAND_THEMES[1];
             const islandLevels = levelsByIsland[islandIdx] ?? [];
-            const completed = islandLevels.filter((l) => l.status === "completed").length;
+            const completed = islandLevels.filter(
+              (l) => l.status === "completed",
+            ).length;
             const blockH = HDR_H + islandLevels.length * NODE_H + PAD * 2;
             const coords = islandLevels.map((_, i) => ({
               x: SNAKE_X[i % SNAKE_X.length],
@@ -336,14 +416,23 @@ export default function MapaPage() {
 
                 <div
                   className="flex items-center gap-3 px-5 py-3.5 mx-3 mb-1 rounded-2xl border border-transparent"
-                  style={{ background: theme.bg, borderColor: `${theme.node}44` }}
+                  style={{
+                    background: theme.bg,
+                    borderColor: `${theme.node}44`,
+                  }}
                 >
                   <span className="text-3xl shrink-0">{island.icon}</span>
                   <div>
-                    <div className="font-[FredokaOne,sans-serif] text-[0.95rem] leading-tight" style={{ color: theme.label }}>
+                    <div
+                      className="font-[FredokaOne,sans-serif] text-[0.95rem] leading-tight"
+                      style={{ color: theme.label }}
+                    >
                       {island.name}
                     </div>
-                    <div className="text-[0.68rem] font-bold opacity-55 mt-px" style={{ color: theme.label }}>
+                    <div
+                      className="text-[0.68rem] font-bold opacity-55 mt-px"
+                      style={{ color: theme.label }}
+                    >
                       {completed}/{islandLevels.length} completados
                     </div>
                   </div>
@@ -362,9 +451,13 @@ export default function MapaPage() {
                       return (
                         <line
                           key={i}
-                          x1={prev.x} y1={prev.y} x2={c.x} y2={c.y}
+                          x1={prev.x}
+                          y1={prev.y}
+                          x2={c.x}
+                          y2={c.y}
                           stroke={active ? theme.node : "#2a2a35"}
-                          strokeWidth="2.5" strokeLinecap="round"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
                           strokeDasharray={active ? undefined : "5 4"}
                           opacity={active ? 0.45 : 0.25}
                         />
@@ -391,7 +484,10 @@ export default function MapaPage() {
                               style={{
                                 fontSize: "0.65rem",
                                 opacity: isDone && level.stars >= s ? 1 : 0.18,
-                                filter: isDone && level.stars >= s ? `drop-shadow(0 0 4px ${theme.node})` : "none",
+                                filter:
+                                  isDone && level.stars >= s
+                                    ? `drop-shadow(0 0 4px ${theme.node})`
+                                    : "none",
                               }}
                             >
                               ⭐
@@ -409,16 +505,24 @@ export default function MapaPage() {
                             ${isLocked ? "cursor-not-allowed opacity-50 grayscale-[0.6]" : "cursor-pointer"}
                           `}
                           style={{
-                            background: isDone ? theme.node : isCurrent ? `linear-gradient(135deg, ${theme.node}, ${theme.nodeBorder})` : undefined,
-                            borderColor: isLocked ? undefined : theme.nodeBorder,
+                            background: isDone
+                              ? theme.node
+                              : isCurrent
+                                ? `linear-gradient(135deg, ${theme.node}, ${theme.nodeBorder})`
+                                : undefined,
+                            borderColor: isLocked
+                              ? undefined
+                              : theme.nodeBorder,
                             boxShadow: isCurrent
                               ? `0 4px 0 ${theme.nodeBorder}, 0 0 24px ${theme.shadow}`
                               : isDone
-                              ? `0 4px 0 ${theme.nodeBorder}88, 0 0 12px ${theme.shadow}`
-                              : undefined,
+                                ? `0 4px 0 ${theme.nodeBorder}88, 0 0 12px ${theme.shadow}`
+                                : undefined,
                           }}
                           disabled={isLocked}
-                          onClick={() => { if (!isLocked) router.push(`/jugar/${level.id}`); }}
+                          onClick={() => {
+                            if (!isLocked) router.push(`/jugar/${level.id}`);
+                          }}
                           aria-label={level.name}
                         >
                           {isLocked ? "🔒" : level.icon}
@@ -456,7 +560,9 @@ export default function MapaPage() {
 function LoadingScreen() {
   return (
     <div className="min-h-dvh bg-[#0a0a0f] flex flex-col items-center justify-center gap-3.5 font-[Nunito,sans-serif]">
-      <div className="text-5xl animate-[bounceLoad_0.75s_ease-in-out_infinite_alternate]">🧮</div>
+      <div className="text-5xl animate-[bounceLoad_0.75s_ease-in-out_infinite_alternate]">
+        🧮
+      </div>
       <div className="text-white/35 text-sm font-bold">Cargando mapa...</div>
     </div>
   );

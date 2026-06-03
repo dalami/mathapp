@@ -35,7 +35,11 @@ export function LivesPill({
   }, [livesResetAt, lives]);
 
   const livesColor =
-    lives <= 1 ? "text-[#EF5350]" : lives <= 2 ? "text-[#FFA726]" : "text-[#FF4757]";
+    lives <= 1
+      ? "text-[#EF5350]"
+      : lives <= 2
+        ? "text-[#FFA726]"
+        : "text-[#FF4757]";
 
   return (
     <button
@@ -46,7 +50,9 @@ export function LivesPill({
       <span>❤️</span>
       <span className={livesColor}>{lives}</span>
       {lives < MAX_LIVES && timeLeft > 0 && (
-        <span className="text-white/40 text-[0.68rem]">{msToMMSS(timeLeft)}</span>
+        <span className="text-white/40 text-[0.68rem]">
+          {msToMMSS(timeLeft)}
+        </span>
       )}
     </button>
   );
@@ -79,7 +85,9 @@ export function NoLivesModal({
       setTimeLeft(remaining);
       if (remaining === 0) {
         clearInterval(interval);
-        const { data } = await supabase.rpc("restore_lives", { p_user_id: userId });
+        const { data } = await supabase.rpc("restore_lives", {
+          p_user_id: userId,
+        });
         if (data?.lives > 0) {
           onLivesRestored(data.lives, localCoins);
         }
@@ -94,7 +102,9 @@ export function NoLivesModal({
   const handleBuyWithCoins = async () => {
     if (localCoins < 100 || buying) return;
     setBuying(true);
-    const { data } = await supabase.rpc("buy_life_with_coins", { p_user_id: userId });
+    const { data } = await supabase.rpc("buy_life_with_coins", {
+      p_user_id: userId,
+    });
     setBuying(false);
     if (data?.ok) {
       setLocalCoins(data.coins);
@@ -107,7 +117,6 @@ export function NoLivesModal({
   return (
     <div className="fixed inset-0 z-200 bg-black/85 backdrop-blur-sm flex items-center justify-center p-5">
       <div className="bg-[#1a1a25] border border-white/10 rounded-[28px] px-6 py-8 w-[min(400px,100%)] flex flex-col items-center gap-4 text-center font-[Nunito,sans-serif] text-white">
-
         <div className="text-[3.5rem] leading-none">💔</div>
 
         <h2 className="font-[FredokaOne,sans-serif] text-[1.8rem] font-normal text-[#EF5350] m-0">
@@ -127,7 +136,9 @@ export function NoLivesModal({
           </div>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map((i) => (
-              <span key={i} className="text-[1.4rem] opacity-20 grayscale">❤️</span>
+              <span key={i} className="text-[1.4rem] opacity-20 grayscale">
+                ❤️
+              </span>
             ))}
           </div>
         </div>
@@ -137,7 +148,9 @@ export function NoLivesModal({
           disabled={!canBuy || buying}
           onClick={handleBuyWithCoins}
         >
-          {buying ? "Comprando..." : `🪙 Usar 100 monedas (tenés ${localCoins})`}
+          {buying
+            ? "Comprando..."
+            : `🪙 Usar 100 monedas (tenés ${localCoins})`}
         </button>
 
         <button
@@ -148,6 +161,12 @@ export function NoLivesModal({
           }}
         >
           📺 Ver un video y ganar 1 vida
+        </button>
+        <button
+          className="w-full px-5 py-4 rounded-2xl border border-[rgba(255,215,0,0.25)] bg-[rgba(255,215,0,0.06)] text-[#FFD700] font-[Nunito,sans-serif] text-[0.92rem] font-extrabold cursor-pointer transition-colors duration-150 hover:bg-[rgba(255,215,0,0.12)]"
+          onClick={() => (window.location.href = "/tienda")}
+        >
+          🛒 Ir a la tienda de monedas
         </button>
 
         <button
@@ -166,7 +185,11 @@ export function useRestoreLives(userId: string | undefined) {
   const restore = useCallback(async () => {
     if (!userId) return null;
     const { data } = await supabase.rpc("restore_lives", { p_user_id: userId });
-    return data as { lives: number; next_regen: string | null; max: boolean } | null;
+    return data as {
+      lives: number;
+      next_regen: string | null;
+      max: boolean;
+    } | null;
   }, [userId]);
 
   return restore;

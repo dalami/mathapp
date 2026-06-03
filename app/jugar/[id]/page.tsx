@@ -422,8 +422,7 @@ export default function JugarPage() {
         onLivesRestored={(newLives, newCoins) => {
           setLives(newLives);
           setCoins(newCoins);
-          fetchedRef.current = false;
-          router.replace(`/jugar/${levelId}`);
+          window.location.href = `/jugar/${levelId}`;
         }}
       />
     );
@@ -481,6 +480,14 @@ export default function JugarPage() {
           title="Volver al mapa"
         >
           🗺️
+        </button>
+        <button
+          className="text-lg leading-none opacity-50 hover:opacity-90 transition-opacity duration-150"
+          onClick={() => router.push("/tienda")}
+          aria-label="Tienda"
+          title="Tienda"
+        >
+          🛒
         </button>
         <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
           <div
