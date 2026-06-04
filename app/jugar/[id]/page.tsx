@@ -454,7 +454,10 @@ export default function JugarPage() {
         userId={user.id}
         coins={coins}
         livesResetAt={livesResetAt}
-        onClose={() => router.replace("/mapa")}
+        onClose={async () => {
+          await refreshProfile();
+          window.location.href = "/mapa";
+        }}
         onLivesRestored={(newLives, newCoins) => {
           setLives(newLives);
           setCoins(newCoins);

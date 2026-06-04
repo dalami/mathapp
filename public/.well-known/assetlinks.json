@@ -1,12 +1,9 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.mathapp.app",
-      "sha256_cert_fingerprints": [
-        "34:B6:8B:D1:F3:C9:E4:17:BE:6D:81:EE:5A:E1:61:3D:4A:D5:C5:62:E6:1A:24:D8:CE:92:98:DE:00:86:5C:A7"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.mathapp.app",
+        "sha256_cert_fingerprints": ["3A:B9:4D:5D:1C:B4:38:FD:74:75:C0:50:7D:D3:C2:90:DE:9B:D0:72:79:E6:2B:D4:B8:FE:85:39:B1:76:78:62"]
+      }
+    }]
+

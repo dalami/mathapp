@@ -127,8 +127,6 @@ export default function MapaPage() {
   const [savingAvatar, setSavingAvatar] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
 
-
-
   useEffect(() => {
     if (!user) return;
     if (!profile) return;
@@ -141,9 +139,12 @@ export default function MapaPage() {
         return;
       }
 
-      // Regenerar vida si corresponde
-      await supabase.rpc("restore_lives", { p_user_id: user!.id });
-      //await refreshProfile();
+      // Restaurar vidas — no bloquea si falla
+      try {
+        await supabase.rpc("restore_lives", { p_user_id: user!.id });
+      } catch {
+        // continuar igual
+      }
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
         supabase
