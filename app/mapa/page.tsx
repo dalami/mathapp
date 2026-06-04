@@ -129,81 +129,96 @@ export default function MapaPage() {
 
   const fetchedRef = useRef(false);
 
-useEffect(() => {
-   console.log("🔄 useEffect mapa - user:", !!user, "profile:", !!profile, "stage:", profile?.stage, "fetchedRef:", fetchedRef.current);
-  if (!user || !profile) return;
-  if (!profile.stage) {
-    router.replace("/etapa");
-    return;
-  }
-  if (fetchedRef.current) return;
-  fetchedRef.current = true;
+  useEffect(() => {
+    console.log(
+      "🔄 useEffect mapa - user:",
+      !!user,
+      "profile:",
+      !!profile,
+      "stage:",
+      profile?.stage,
+      "fetchedRef:",
+      fetchedRef.current,
+    );
+    if (!user || !profile) return;
+    if (!profile.stage) {
+      router.replace("/etapa");
+      return;
+    }
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     console.log("✅ fetchData va a correr");
 
-  async function fetchData() {
-    setLoading(true);
+    async function fetchData() {
+      setLoading(true);
 
-    void supabase.rpc("restore_lives", { p_user_id: user!.id });
+      void supabase.rpc("restore_lives", { p_user_id: user!.id });
 
-    const [islandsRes, levelsRes, progressRes] = await Promise.all([
-      supabase
-        .from("islands")
-        .select("id,name,icon,order_index")
-        .eq("stage", profile!.stage)
-        .order("order_index"),
-      supabase
-        .from("levels")
-        .select(
-          "id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires",
-        )
-        .order("island_id")
-        .order("order_index"),
-      supabase
-        .from("user_progress")
-        .select("level_id,stars")
-        .eq("user_id", user!.id),
-    ]);
+      const [islandsRes, levelsRes, progressRes] = await Promise.all([
+        supabase
+          .from("islands")
+          .select("id,name,icon,order_index")
+          .eq("stage", profile!.stage)
+          .order("order_index"),
+        supabase
+          .from("levels")
+          .select(
+            "id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires",
+          )
+          .order("island_id")
+          .order("order_index"),
+        supabase
+          .from("user_progress")
+          .select("level_id,stars")
+          .eq("user_id", user!.id),
+      ]);
 
-    if (!fetchedRef.current) return; // cancelado
+      if (!fetchedRef.current) return; // cancelado
 
-    const progressMap = new Map<string, number>(
-      ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
-        p.level_id,
-        p.stars,
-      ]),
-    );
+      const progressMap = new Map<string, number>(
+        ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
+          p.level_id,
+          p.stars,
+        ]),
+      );
 
-    let foundCurrent = false;
-    const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map(
-      (lvl) => {
-        const stars = progressMap.get(lvl.id) ?? 0;
-        let status: Level["status"] = "locked";
-        if (stars > 0) {
-          status = "completed";
-        } else if (
-          !foundCurrent &&
-          (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))
-        ) {
-          status = "current";
-          foundCurrent = true;
-        }
-        return { ...lvl, stars, status };
-      },
-    );
+      let foundCurrent = false;
+      const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map(
+        (lvl) => {
+          const stars = progressMap.get(lvl.id) ?? 0;
+          let status: Level["status"] = "locked";
+          if (stars > 0) {
+            status = "completed";
+          } else if (
+            !foundCurrent &&
+            (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))
+          ) {
+            status = "current";
+            foundCurrent = true;
+          }
+          return { ...lvl, stars, status };
+        },
+      );
 
-    if (!foundCurrent) {
-      const first = processed.find((l) => l.status === "locked");
-      if (first) first.status = "current";
+      if (!foundCurrent) {
+        const first = processed.find((l) => l.status === "locked");
+        if (first) first.status = "current";
+      }
+
+      setIslands((islandsRes.data ?? []) as Island[]);
+      setLevels(processed);
+      setLoading(false);
     }
 
-    setIslands((islandsRes.data ?? []) as Island[]);
-    setLevels(processed);
-    setLoading(false);
-  }
+    fetchData();
+  }, [user, profile, router]);
 
-  fetchData();
-}, [user, profile, router]);
-
+  // ── Reset fetchedRef al desmontar ──
+  useEffect(() => {
+    return () => {
+      fetchedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
