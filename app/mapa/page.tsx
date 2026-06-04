@@ -127,9 +127,13 @@ export default function MapaPage() {
   const [savingAvatar, setSavingAvatar] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
 
+  const fetchedRef = useRef(false);
+
   useEffect(() => {
-    if (!user) return;
-    if (!profile) return;
+    if (!user || !profile) return;
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
     let cancelled = false;
 
     async function fetchData() {
@@ -139,18 +143,9 @@ export default function MapaPage() {
         return;
       }
 
-      // Restaurar vidas — no bloquea si falla
+      // Restaurar vidas — no bloquea si falla, sin refreshProfile para evitar loop
       try {
-        const { data: restored } = await supabase.rpc("restore_lives", {
-          p_user_id: user!.id,
-        });
-        // Si devolvió vidas actualizadas, actualizar el perfil silenciosamente
-        if (
-          restored?.lives !== undefined &&
-          restored.lives !== profile?.lives
-        ) {
-          await refreshProfile();
-        }
+        await supabase.rpc("restore_lives", { p_user_id: user!.id });
       } catch {
         // continuar igual
       }
@@ -159,7 +154,7 @@ export default function MapaPage() {
         supabase
           .from("islands")
           .select("id,name,icon,order_index")
-          .eq("stage", profile.stage)
+          .eq("stage", profile!.stage)
           .order("order_index"),
         supabase
           .from("levels")
@@ -215,7 +210,7 @@ export default function MapaPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, router]);// eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, profile, router]); 
 
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
