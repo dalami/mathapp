@@ -162,7 +162,9 @@ export default function MapaPage() {
       setLoading(true);
 
       // restore_lives en background — no bloquea la carga del mapa
-      Promise.resolve(supabase.rpc("restore_lives", { p_user_id: userId! }))
+      Promise.resolve(
+        supabase.rpc("restore_lives", { p_user_id: userId! })
+      )
         .then(() => refreshProfile())
         .catch(console.error);
 
@@ -231,6 +233,22 @@ export default function MapaPage() {
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
   }, [loading]);
+
+  // Restaurar vidas cuando el usuario vuelve a la app (PWA background)
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        await supabase.rpc("restore_lives", { p_user_id: userId });
+        refreshProfile();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [userId, refreshProfile]);
 
   async function handleAvatarSelect(idx: number) {
     if (!user) return;
@@ -326,6 +344,8 @@ export default function MapaPage() {
             <LivesPill
               lives={profile?.lives ?? 5}
               livesResetAt={profile?.lives_reset_at ?? null}
+              userId={user?.id}
+              onRestored={() => refreshProfile()}
             />
             <button
               className="w-8 h-8 rounded-full bg-white/8 border border-white/12 text-white/70 text-lg cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-white/15 tracking-[-1px]"
