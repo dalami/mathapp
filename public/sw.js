@@ -1,4 +1,4 @@
-const CACHE_NAME = "mathapp-v2";
+const CACHE_NAME = "mathapp-v3";
 
 const STATIC_ASSETS = ["/", "/auth", "/mapa", "/manifest.json"];
 
@@ -30,7 +30,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
-   if (
+  if (
     url.hostname.includes("supabase.co") ||
     url.hostname.includes("googleapis.com") ||
     url.hostname.includes("fonts.gstatic.com") ||
