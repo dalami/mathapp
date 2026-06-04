@@ -127,9 +127,7 @@ export default function MapaPage() {
   const [savingAvatar, setSavingAvatar] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    refreshProfile();
-  }, []);
+
 
   useEffect(() => {
     if (!user) return;
