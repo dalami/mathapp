@@ -127,64 +127,87 @@ export default function MapaPage() {
   const [savingAvatar, setSavingAvatar] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
 
- const fetchedRef = useRef(false);
+  const fetchedRef = useRef(false);
 
-// Reset al desmontar — esto es clave para window.location.href
-useEffect(() => {
-  fetchedRef.current = false;
-  return () => {
+  // Reset al desmontar — esto es clave para window.location.href
+  useEffect(() => {
     fetchedRef.current = false;
-  };
-}, []);
+    return () => {
+      fetchedRef.current = false;
+    };
+  }, []);
 
-useEffect(() => {
-  if (!user || !profile) return;
-  if (!profile.stage) {
-    router.replace("/etapa");
-    return;
-  }
-  if (fetchedRef.current) return;
-  fetchedRef.current = true;
+  useEffect(() => {
+    if (!user || !profile) return;
+    if (!profile.stage) {
+      router.replace("/etapa");
+      return;
+    }
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
 
-  async function fetchData() {
-    setLoading(true);
-    void supabase.rpc("restore_lives", { p_user_id: user!.id });
+    async function fetchData() {
+      setLoading(true);
+      supabase.rpc("restore_lives", { p_user_id: user!.id }).then(() => {
+        refreshProfile();
+      });
 
-    const [islandsRes, levelsRes, progressRes] = await Promise.all([
-      supabase.from("islands").select("id,name,icon,order_index").eq("stage", profile!.stage).order("order_index"),
-      supabase.from("levels").select("id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires").order("island_id").order("order_index"),
-      supabase.from("user_progress").select("level_id,stars").eq("user_id", user!.id),
-    ]);
+      const [islandsRes, levelsRes, progressRes] = await Promise.all([
+        supabase
+          .from("islands")
+          .select("id,name,icon,order_index")
+          .eq("stage", profile!.stage)
+          .order("order_index"),
+        supabase
+          .from("levels")
+          .select(
+            "id,name,icon,order_index,island_id,is_boss,time_limit_secs,questions_count,unlock_requires",
+          )
+          .order("island_id")
+          .order("order_index"),
+        supabase
+          .from("user_progress")
+          .select("level_id,stars")
+          .eq("user_id", user!.id),
+      ]);
 
-    const progressMap = new Map<string, number>(
-      ((progressRes.data ?? []) as ProgressRow[]).map((p) => [p.level_id, p.stars]),
-    );
+      const progressMap = new Map<string, number>(
+        ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
+          p.level_id,
+          p.stars,
+        ]),
+      );
 
-    let foundCurrent = false;
-    const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map((lvl) => {
-      const stars = progressMap.get(lvl.id) ?? 0;
-      let status: Level["status"] = "locked";
-      if (stars > 0) {
-        status = "completed";
-      } else if (!foundCurrent && (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))) {
-        status = "current";
-        foundCurrent = true;
+      let foundCurrent = false;
+      const processed: Level[] = ((levelsRes.data ?? []) as LevelRaw[]).map(
+        (lvl) => {
+          const stars = progressMap.get(lvl.id) ?? 0;
+          let status: Level["status"] = "locked";
+          if (stars > 0) {
+            status = "completed";
+          } else if (
+            !foundCurrent &&
+            (!lvl.unlock_requires || progressMap.has(lvl.unlock_requires))
+          ) {
+            status = "current";
+            foundCurrent = true;
+          }
+          return { ...lvl, stars, status };
+        },
+      );
+
+      if (!foundCurrent) {
+        const first = processed.find((l) => l.status === "locked");
+        if (first) first.status = "current";
       }
-      return { ...lvl, stars, status };
-    });
 
-    if (!foundCurrent) {
-      const first = processed.find((l) => l.status === "locked");
-      if (first) first.status = "current";
+      setIslands((islandsRes.data ?? []) as Island[]);
+      setLevels(processed);
+      setLoading(false);
     }
 
-    setIslands((islandsRes.data ?? []) as Island[]);
-    setLevels(processed);
-    setLoading(false);
-  }
-
-  fetchData();
-}, [user, profile, router]); 
+    fetchData();
+  }, [user, profile, router]);
 
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
