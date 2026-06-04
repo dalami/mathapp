@@ -14,25 +14,53 @@ function msToMMSS(ms: number): string {
 }
 
 // ─── Versión compacta: topbar del mapa ───────────────────────
+// Cuando el timer llega a 0, llama al RPC y avisa al padre via onRestored
 export function LivesPill({
   lives,
   livesResetAt,
+  userId,
   onClick,
+  onRestored,
 }: {
   lives: number;
   livesResetAt: string | null;
+  userId?: string;
   onClick?: () => void;
+  onRestored?: (newLives: number, nextRegen: string | null) => void;
 }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   useEffect(() => {
     if (!livesResetAt || lives >= MAX_LIVES) return;
+
     const target = new Date(livesResetAt).getTime();
-    const update = () => setTimeLeft(Math.max(0, target - Date.now()));
-    const t = setInterval(update, 1000);
-    setTimeout(update, 0);
-    return () => clearInterval(t);
-  }, [livesResetAt, lives]);
+
+    const tick = async () => {
+      const remaining = Math.max(0, target - Date.now());
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        clearInterval(interval);
+
+        if (!userId) return;
+
+        // Pequeño delay por si el reloj del cliente está levemente adelantado
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const { data } = await supabase.rpc("restore_lives", {
+          p_user_id: userId,
+        });
+
+        if (data?.lives > 0 && onRestored) {
+          onRestored(data.lives, data.next_regen ?? null);
+        }
+      }
+    };
+
+    const interval = setInterval(tick, 1000);
+    setTimeout(tick, 0);
+    return () => clearInterval(interval);
+  }, [livesResetAt, lives, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const livesColor =
     lives <= 1
@@ -83,13 +111,28 @@ export function NoLivesModal({
     const tick = async () => {
       const remaining = Math.max(0, target - Date.now());
       setTimeLeft(remaining);
+
       if (remaining === 0) {
         clearInterval(interval);
+
+        // Delay por desfase de reloj cliente/servidor
+        await new Promise((r) => setTimeout(r, 1500));
+
         const { data } = await supabase.rpc("restore_lives", {
           p_user_id: userId,
         });
+
         if (data?.lives > 0) {
           onLivesRestored(data.lives, localCoins);
+        } else {
+          // Reintentar una vez más por si el servidor tardó un poco más
+          await new Promise((r) => setTimeout(r, 3000));
+          const { data: data2 } = await supabase.rpc("restore_lives", {
+            p_user_id: userId,
+          });
+          if (data2?.lives > 0) {
+            onLivesRestored(data2.lives, localCoins);
+          }
         }
       }
     };

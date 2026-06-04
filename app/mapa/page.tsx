@@ -129,34 +129,48 @@ export default function MapaPage() {
 
   const fetchedRef = useRef(false);
 
-  // Reset al desmontar — esto es clave para window.location.href
-  useEffect(() => {
-    fetchedRef.current = false;
-    return () => {
-      fetchedRef.current = false;
-    };
-  }, []);
+  // FIX: depender de user.id + profile.stage en vez de los objetos enteros.
+  // Así no re-ejecuta si solo cambian coins/lives después de restore_lives.
+  const userId = user?.id;
+  const profileStage = profile?.stage;
 
   useEffect(() => {
-    if (!user || !profile) return;
-    if (!profile.stage) {
+    // Resetear el guard cuando cambia de usuario o stage
+    fetchedRef.current = false;
+  }, [userId, profileStage]);
+
+  useEffect(() => {
+    // Esperar que auth termine de cargar
+    if (authLoading) return;
+    // Si no hay usuario, redirigir a auth
+    if (!userId) {
+      router.replace("/auth");
+      return;
+    }
+    // Si hay usuario pero no hay profile todavía, esperar
+    if (!profile) return;
+    // Sin stage → elegir etapa
+    if (!profileStage) {
       router.replace("/etapa");
       return;
     }
+    // Ya fetched → no repetir
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
     async function fetchData() {
       setLoading(true);
-      supabase.rpc("restore_lives", { p_user_id: user!.id }).then(() => {
-        refreshProfile();
-      });
+
+      // restore_lives en background — no bloquea la carga del mapa
+      Promise.resolve(supabase.rpc("restore_lives", { p_user_id: userId! }))
+        .then(() => refreshProfile())
+        .catch(console.error);
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
         supabase
           .from("islands")
           .select("id,name,icon,order_index")
-          .eq("stage", profile!.stage)
+          .eq("stage", profileStage!)
           .order("order_index"),
         supabase
           .from("levels")
@@ -168,8 +182,13 @@ export default function MapaPage() {
         supabase
           .from("user_progress")
           .select("level_id,stars")
-          .eq("user_id", user!.id),
+          .eq("user_id", userId!),
       ]);
+
+      if (islandsRes.error) console.error("islands error:", islandsRes.error);
+      if (levelsRes.error) console.error("levels error:", levelsRes.error);
+      if (progressRes.error)
+        console.error("progress error:", progressRes.error);
 
       const progressMap = new Map<string, number>(
         ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
@@ -207,7 +226,7 @@ export default function MapaPage() {
     }
 
     fetchData();
-  }, [user, profile, router]);
+  }, [authLoading, userId, profileStage, profile, router, refreshProfile]);
 
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
@@ -225,7 +244,11 @@ export default function MapaPage() {
     setShowAvatars(false);
   }
 
-  if (authLoading || loading) return <LoadingScreen />;
+  // Mientras auth carga o mientras fetchData todavía no terminó
+  if (authLoading || (userId && profile && loading)) return <LoadingScreen />;
+
+  // Si no hay user/profile después de que auth terminó, ya hay redirect
+  if (!user || !profile) return <LoadingScreen />;
 
   const levelsByIsland = islands.map((island) =>
     levels
