@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .single();
 
-        console.log("👤 fetchProfile - data:", !!data, "error:", error?.message);
+    console.log("👤 fetchProfile - data:", !!data, "error:", error?.message);
 
     if (!error && data) {
       setProfile(data as Profile);
@@ -74,10 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
+    let profileLoaded = false;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        profileLoaded = true;
         fetchProfile(session.user.id).finally(() => {
           setLoading(false);
         });
@@ -89,19 +92,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // Ignorar el evento inicial — getSession ya lo maneja
-      if (_event === "INITIAL_SESSION") return;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
+      if (session?.user && !profileLoaded) {
+        profileLoaded = true;
         await fetchProfile(session.user.id);
-      } else {
+      } else if (!session?.user) {
+        profileLoaded = false;
         setProfile(null);
       }
+      if (loading) setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [fetchProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
