@@ -2,7 +2,7 @@
   "name": "MathApp — Aprendé matemáticas jugando",
   "short_name": "MathApp",
   "description": "Aprendé matemáticas con un mapa de niveles estilo Candy Crush",
-  "start_url": "/mapa",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",
