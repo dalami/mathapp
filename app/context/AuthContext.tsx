@@ -55,11 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Carga el perfil desde Supabase y restaura vidas
   const fetchProfile = useCallback(async (userId: string) => {
-    // Restaurar vidas según tiempo transcurrido
-    //await supabase.rpc("restore_lives", { p_user_id: userId });
-
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -71,25 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Refrescar perfil desde cualquier componente (ej: después de ganar monedas)
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user.id);
   }, [user, fetchProfile]);
 
-  // Escuchar cambios de sesión
   useEffect(() => {
-    let initialized = false;
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id).finally(() => {
-          initialized = true;
           setLoading(false);
         });
       } else {
-        initialized = true;
         setLoading(false);
       }
     });
@@ -97,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Ignorar el evento inicial — getSession ya lo maneja
+      if (_event === "INITIAL_SESSION") return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -104,17 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
       }
-      // Solo setea loading false si getSession todavía no lo hizo
-      if (!initialized) {
-        initialized = true;
-        setLoading(false);
-      }
     });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
-
-  // ─── Métodos de auth ─────────────────────────────────────
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -134,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { full_name: displayName },
-        // Redirige después de confirmar el email
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
