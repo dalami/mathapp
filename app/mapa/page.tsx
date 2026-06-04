@@ -200,13 +200,6 @@ export default function MapaPage() {
     fetchData();
   }, [user, profile, router]);
 
-  // ── Reset fetchedRef al desmontar ──
-  useEffect(() => {
-    return () => {
-      fetchedRef.current = false;
-    };
-  }, []);
-
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
   }, [loading]);
