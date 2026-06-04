@@ -439,13 +439,26 @@ export default function JugarPage() {
   }, [questions, lives, level]);
 
   // ─── Salir ───────────────────────────────────────────────
-  const handleExit = useCallback(() => {
+  const handleExit = useCallback(async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (feedbackRef.current) clearTimeout(feedbackRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+
+    // Descontar vida si sale a mitad del nivel
+    if (
+      user &&
+      (phaseRef.current === "playing" || phaseRef.current === "feedback")
+    ) {
+      try {
+        await supabase.rpc("spend_life", { p_user_id: user.id });
+      } catch {
+        // Si falla, igual salimos
+      }
+    }
+
     router.replace("/mapa");
-  }, [router]);
+  }, [router, user]);
 
   // ─── RENDERS ─────────────────────────────────────────────
   if (phase === "no_lives" && user) {
