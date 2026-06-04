@@ -130,28 +130,15 @@ export default function MapaPage() {
   const fetchedRef = useRef(false);
 
   useEffect(() => {
-    console.log(
-      "🔄 useEffect mapa - user:",
-      !!user,
-      "profile:",
-      !!profile,
-      "stage:",
-      profile?.stage,
-      "fetchedRef:",
-      fetchedRef.current,
-    );
-    if (!user || !profile) return;
-    if (!profile.stage) {
-      router.replace("/etapa");
-      return;
-    }
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    console.log("✅ fetchData va a correr");
+    if (!user) return;
+    if (!profile) return;
 
     async function fetchData() {
       setLoading(true);
-
+      if (!profile?.stage) {
+        router.replace("/etapa");
+        return;
+      }
       void supabase.rpc("restore_lives", { p_user_id: user!.id });
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
