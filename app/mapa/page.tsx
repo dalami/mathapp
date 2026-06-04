@@ -130,6 +130,7 @@ export default function MapaPage() {
   const fetchedRef = useRef(false);
 
 useEffect(() => {
+   console.log("🔄 useEffect mapa - user:", !!user, "profile:", !!profile, "stage:", profile?.stage, "fetchedRef:", fetchedRef.current);
   if (!user || !profile) return;
   if (!profile.stage) {
     router.replace("/etapa");
@@ -137,6 +138,7 @@ useEffect(() => {
   }
   if (fetchedRef.current) return;
   fetchedRef.current = true;
+    console.log("✅ fetchData va a correr");
 
   async function fetchData() {
     setLoading(true);
