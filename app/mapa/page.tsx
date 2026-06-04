@@ -141,7 +141,16 @@ export default function MapaPage() {
 
       // Restaurar vidas — no bloquea si falla
       try {
-        await supabase.rpc("restore_lives", { p_user_id: user!.id });
+        const { data: restored } = await supabase.rpc("restore_lives", {
+          p_user_id: user!.id,
+        });
+        // Si devolvió vidas actualizadas, actualizar el perfil silenciosamente
+        if (
+          restored?.lives !== undefined &&
+          restored.lives !== profile?.lives
+        ) {
+          await refreshProfile();
+        }
       } catch {
         // continuar igual
       }
@@ -206,7 +215,7 @@ export default function MapaPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, profile, router]);
+  }, [user, router]);// eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
