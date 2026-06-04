@@ -3,7 +3,7 @@
       "target": {
         "namespace": "android_app",
         "package_name": "com.mathapp.app",
-        "sha256_cert_fingerprints": ["3A:B9:4D:5D:1C:B4:38:FD:74:75:C0:50:7D:D3:C2:90:DE:9B:D0:72:79:E6:2B:D4:B8:FE:85:39:B1:76:78:62"]
+        "sha256_cert_fingerprints": ["DB:EF:FC:E0:E3:59:A7:15:E6:62:98:DD:CD:67:FB:04:94:65:6A:07:ED:D8:5C:3F:B2:67:33:B6:6A:1B:62:08"]
       }
     }]
 
