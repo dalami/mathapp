@@ -200,7 +200,7 @@ useEffect(() => {
   }
 
   fetchData();
-}, [user, profile, router]); // eslint-disable-line react-hooks/exhaustive-deps
+}, [user, profile, router]);
 
 
   useEffect(() => {
