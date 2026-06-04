@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { NoLivesModal, useRestoreLives } from "@/components/LivesBar";
+import { useSound } from "../../hooks/useSound";
 
 interface LevelInfo {
   id: string;
@@ -81,6 +82,9 @@ export default function JugarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextLevelId, setNextLevelId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const { enabled: soundEnabled, toggle: toggleSound } = useSound(
+    "/sounds/background.ogg",
+  );
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +94,7 @@ export default function JugarPage() {
   const livesRef = useRef(5);
   const phaseRef = useRef<GamePhase>("loading");
   const fetchedRef = useRef(false);
+
   // ── FIX: ref para evitar stale closure en handleFinish ──
   const nextLevelIdRef = useRef<string | null>(null);
 
@@ -521,6 +526,14 @@ export default function JugarPage() {
           title="Tienda"
         >
           🛒
+        </button>
+        <button
+          className="text-lg leading-none opacity-50 hover:opacity-90 transition-opacity duration-150"
+          onClick={toggleSound}
+          aria-label={soundEnabled ? "Silenciar" : "Activar sonido"}
+          title={soundEnabled ? "Silenciar" : "Activar sonido"}
+        >
+          {soundEnabled ? "🔊" : "🔇"}
         </button>
         <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
           <div

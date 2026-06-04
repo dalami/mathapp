@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MathApp</string>
+    <string name="title_activity_main">MathApp</string>
+    <string name="package_name">com.mathapp.app</string>
+    <string name="custom_url_scheme">com.mathapp.app</string>
+</resources>

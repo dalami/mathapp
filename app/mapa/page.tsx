@@ -128,6 +128,10 @@ export default function MapaPage() {
   const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    refreshProfile();
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     if (!profile) return;
     let cancelled = false;
@@ -138,6 +142,10 @@ export default function MapaPage() {
         router.replace("/etapa");
         return;
       }
+
+      // Regenerar vida si corresponde
+      await supabase.rpc("restore_lives", { p_user_id: user!.id });
+      //await refreshProfile();
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
         supabase

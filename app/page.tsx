@@ -151,6 +151,27 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
 export default function LandingPage() {
   //const router = useRouter();
 
+  const [installable, setInstallable] = useState(false);
+
+  useEffect(() => {
+    const onReady = () => setInstallable(true);
+    const onInstalled = () => setInstallable(false);
+    window.addEventListener("pwaInstallReady", onReady);
+    window.addEventListener("pwaInstalled", onInstalled);
+    return () => {
+      window.removeEventListener("pwaInstallReady", onReady);
+      window.removeEventListener("pwaInstalled", onInstalled);
+    };
+  }, []);
+
+  async function handleInstall() {
+    const { deferredInstallPrompt } = await import("@/components/PWARegister");
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === "accepted") setInstallable(false);
+  }
+
   return (
     <div className="min-h-fit bg-[#08080f] text-white overflow-x-hidden font-[Nunito,sans-serif] selection:bg-[#FFD700] selection:text-[#08080f]">
       {/* ── FONDO ANIMADO ── */}
@@ -227,6 +248,14 @@ export default function LandingPage() {
           >
             🚀 Empezar gratis
           </button>
+          {installable && (
+            <button
+              className="px-6 py-4 rounded-2xl font-bold text-white text-sm border border-[#FFD700]/30 bg-[#FFD700]/8 hover:bg-[#FFD700]/15 transition-all duration-200 flex items-center gap-2"
+              onClick={handleInstall}
+            >
+              📲 Instalar app
+            </button>
+          )}
           <button
             className="px-6 py-4 rounded-2xl font-bold text-white/50 text-sm border border-white/10 hover:border-white/25 hover:text-white transition-all duration-200"
             onClick={() =>
