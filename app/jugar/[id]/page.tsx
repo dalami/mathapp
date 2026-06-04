@@ -454,8 +454,7 @@ export default function JugarPage() {
         userId={user.id}
         coins={coins}
         livesResetAt={livesResetAt}
-        onClose={async () => {
-          //await refreshProfile();
+        onClose={() => {
           window.location.href = "/mapa";
         }}
         onLivesRestored={(newLives, newCoins) => {
