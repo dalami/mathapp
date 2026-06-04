@@ -74,38 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    let profileLoaded = false;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        profileLoaded = true;
-        fetchProfile(session.user.id).finally(() => {
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user && !profileLoaded) {
-        profileLoaded = true;
+      if (session?.user) {
         await fetchProfile(session.user.id);
-      } else if (!session?.user) {
-        profileLoaded = false;
+      } else {
         setProfile(null);
       }
-      if (loading) setLoading(false);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchProfile]);
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
