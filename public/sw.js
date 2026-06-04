@@ -30,11 +30,13 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
-  if (
+   if (
     url.hostname.includes("supabase.co") ||
     url.hostname.includes("googleapis.com") ||
     url.hostname.includes("fonts.gstatic.com") ||
-    url.hostname.includes("vercel.app") === false && url.hostname !== "localhost"
+    url.pathname.startsWith("/jugar/") ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth/")
   ) {
     return;
   }
