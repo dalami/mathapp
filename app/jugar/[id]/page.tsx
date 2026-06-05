@@ -95,6 +95,11 @@ export default function JugarPage() {
   const phaseRef = useRef<GamePhase>("loading");
   const fetchedRef = useRef(false);
   const nextLevelIdRef = useRef<string | null>(null);
+  // FIX: ref del profile para leerlo dentro del efecto sin ponerlo en las deps
+  const profileRef = useRef(profile);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   const restoreLives = useRestoreLives(user?.id);
 
@@ -118,15 +123,33 @@ export default function JugarPage() {
   }, []);
 
   // ─── Cargar nivel ────────────────────────────────────────
+  // FIX: profile FUERA de las deps — se lee via profileRef para evitar
+  // que refreshProfile() (llamado en handleFinish) reactive este efecto
+  // mientras el setTimeout de autoAdvance todavía está corriendo.
   useEffect(() => {
-    if (!user || !levelId || !profile) return;
+    if (!user || !levelId) return;
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
     async function fetchLevel() {
+      // Esperamos a que profile esté disponible (puede tardar un tick)
+      let currentProfile = profileRef.current;
+      if (!currentProfile) {
+        // Poll liviano: esperar hasta 2s a que el profile llegue
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 100));
+          currentProfile = profileRef.current;
+          if (currentProfile) break;
+        }
+      }
+      if (!currentProfile) {
+        router.replace("/mapa");
+        return;
+      }
+
       try {
-        let currentLives = profile?.lives ?? 5;
-        let currentResetAt: string | null = profile?.lives_reset_at ?? null;
+        let currentLives = currentProfile.lives ?? 5;
+        let currentResetAt: string | null = currentProfile.lives_reset_at ?? null;
 
         try {
           const restored = await restoreLives();
@@ -140,7 +163,7 @@ export default function JugarPage() {
 
         if (currentLives <= 0) {
           setLives(0);
-          setCoins(profile?.coins ?? 0);
+          setCoins(currentProfile.coins ?? 0);
           setLivesResetAt(currentResetAt);
           setPhase("no_lives");
           return;
@@ -199,7 +222,7 @@ export default function JugarPage() {
         setNextLevelId(nextLvl?.id ?? null);
         setCurrentIdx(0);
         setLives(currentLives);
-        setCoins(profile?.coins ?? 0);
+        setCoins(currentProfile.coins ?? 0);
         setLivesResetAt(currentResetAt);
         setFeedback(null);
         setSelectedOption(null);
@@ -221,7 +244,7 @@ export default function JugarPage() {
     }
 
     fetchLevel();
-  }, [user, levelId, profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, levelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Shuffle opciones ────────────────────────────────────
   useEffect(() => {
@@ -266,7 +289,8 @@ export default function JugarPage() {
           console.error("Error guardando resultado:", e);
         }
         try {
-          await refreshProfile();
+          // FIX: refreshProfile en background, sin await que bloquee el autoAdvance
+          refreshProfile().catch(() => {});
         } catch (e) {
           console.error("Error actualizando perfil:", e);
         }
@@ -282,9 +306,6 @@ export default function JugarPage() {
             clearInterval(countdownRef.current);
         }, 1000);
 
-        // FIX: usar router.push en lugar de window.location.href
-        // Así Next.js mantiene la sesión de Supabase sin forzar un full reload,
-        // eliminando la race condition que dejaba el mapa colgado.
         autoAdvanceRef.current = setTimeout(() => {
           const dest = nextLevelIdRef.current;
           if (dest) {
@@ -420,7 +441,6 @@ export default function JugarPage() {
     if (countdownRef.current) clearInterval(countdownRef.current);
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
 
-    // Descontar vida si sale a mitad del nivel
     if (
       user &&
       (phaseRef.current === "playing" || phaseRef.current === "feedback")
@@ -432,7 +452,6 @@ export default function JugarPage() {
       }
     }
 
-    // FIX: router.replace en lugar de window.location para no perder sesión
     router.replace("/mapa");
   }, [router, user]);
 
@@ -444,13 +463,11 @@ export default function JugarPage() {
         coins={coins}
         livesResetAt={livesResetAt}
         onClose={() => {
-          // FIX: router en lugar de window.location para mantener sesión
           router.replace("/mapa");
         }}
         onLivesRestored={(newLives, newCoins) => {
           setLives(newLives);
           setCoins(newCoins);
-          // FIX: resetear fetchedRef para que el nivel se recargue con las vidas nuevas
           fetchedRef.current = false;
           router.replace(`/jugar/${levelId}`);
         }}
