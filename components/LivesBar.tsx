@@ -197,15 +197,6 @@ export function NoLivesModal({
         </button>
 
         <button
-          className="w-full px-5 py-4 rounded-2xl border border-[rgba(100,180,255,0.25)] bg-[rgba(41,182,246,0.08)] text-[#4FC3F7] font-[Nunito,sans-serif] text-[0.92rem] font-extrabold cursor-pointer transition-colors duration-150 hover:bg-[rgba(41,182,246,0.14)]"
-          onClick={() => {
-            // TODO: rewarded ad — por ahora da 1 vida gratis
-            onLivesRestored(1, localCoins);
-          }}
-        >
-          📺 Ver un video y ganar 1 vida
-        </button>
-        <button
           className="w-full px-5 py-4 rounded-2xl border border-[rgba(255,215,0,0.25)] bg-[rgba(255,215,0,0.06)] text-[#FFD700] font-[Nunito,sans-serif] text-[0.92rem] font-extrabold cursor-pointer transition-colors duration-150 hover:bg-[rgba(255,215,0,0.12)]"
           onClick={onClose}
         >
