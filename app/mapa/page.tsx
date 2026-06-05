@@ -432,7 +432,19 @@ export default function MapaPage() {
             >
               🛒 Tienda
             </button>
+
             <div className="h-px bg-white/8 my-1" />
+
+            <a
+              href="https://play.google.com/store/apps/details?id=ar.com.mathapp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-white/85 font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-white/8"
+            >
+              📲 Descargar app
+            </a>
+            <div className="h-px bg-white/8 my-1" />
+
             <button
               className="w-full px-3.5 py-2.5 rounded-xl border-none bg-transparent text-[#ef9a9a] font-[Nunito,sans-serif] text-sm font-bold cursor-pointer text-left flex items-center gap-2 transition-colors duration-150 hover:bg-[rgba(239,83,80,0.12)]"
               onClick={async () => {

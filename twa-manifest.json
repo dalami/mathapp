@@ -12,7 +12,7 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#0A0A0F",
   "enableNotifications": true,
-  "startUrl": "mathapp-eight.vercel.app",
+  "startUrl": "/",
   "iconUrl": "https://mathapp-eight.vercel.app/icons/icon-512x512.png",
   "maskableIconUrl": "https://mathapp-eight.vercel.app/icons/icon-512x512.png",
   "splashScreenFadeOutDuration": 300,
