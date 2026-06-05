@@ -1,7 +1,7 @@
 {
-  "packageId": "com.mathapp.app",
+  "packageId": "ar.com.mathapp",
   "host": "mathapp-eight.vercel.app",
-  "name": "MathApp - Aprende matematicas jugando",
+  "name": "MathApp - Aprende jugando",
   "launcherName": "MathApp",
   "display": "standalone",
   "themeColor": "#0A0A0F",
@@ -12,13 +12,12 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#0A0A0F",
   "enableNotifications": true,
-  "startUrl": "/mapa",
+  "startUrl": "mathapp-eight.vercel.app",
   "iconUrl": "https://mathapp-eight.vercel.app/icons/icon-512x512.png",
   "maskableIconUrl": "https://mathapp-eight.vercel.app/icons/icon-512x512.png",
-  "monochromeIconUrl": "https://mathapp-eight.vercel.app/icons/icon-512x512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "C:\\users\\otero\\mathapp\\android.keystore",
+    "path": "C:\\twa-mathapp\\mathapp.keystore",
     "alias": "android"
   },
   "appVersionName": "1",
@@ -45,5 +44,5 @@
   "launchHandlerClientMode": "",
   "displayOverride": [],
   "appVersion": "1",
-  "androidSdkPath": "C:\\Users\\otero\\AppData\\Local\\Android\\Sdk"
+  "androidSdk": "C:\\Users\\otero\\AppData\\Local\\Android\\Sdk"
 }
