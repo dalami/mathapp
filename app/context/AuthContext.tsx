@@ -56,10 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // FIX: usamos ref para evitar que onAuthStateChange haga doble
-  // fetchProfile cuando getSession ya lo disparó primero.
-  const fetchingRef = useRef(false);
-  const initializedRef = useRef(false);
+  // Ref para evitar doble fetch si onAuthStateChange dispara
+  // mientras ya hay un fetchProfile en curso.
+  const fetchingForId = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -68,67 +67,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .single();
 
-    console.log(
-      "👤 fetchProfile resultado - data:",
-      !!data,
-      "error:",
-      error?.message,
-      "code:",
-      error?.code,
-    );
-
     if (!error && data) {
       setProfile(data as Profile);
     }
     return { data, error };
   }, []);
 
+  // refreshProfile usa ref para no recrearse cuando cambia user
+  const userRef = useRef<User | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id);
-  }, [user, fetchProfile]);
+    if (userRef.current) await fetchProfile(userRef.current.id);
+  }, [fetchProfile]);
 
   useEffect(() => {
-    // ── 1. Recuperar sesión inicial ──────────────────────────
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchingRef.current = true;
-        try {
-          await fetchProfile(session.user.id);
-        } finally {
-          fetchingRef.current = false;
-        }
-      }
-
-      initializedRef.current = true;
-      setLoading(false);
-    });
-
-    // ── 2. Escuchar cambios de auth ──────────────────────────
+    // FIX DEFINITIVO: un solo path de inicialización.
+    // onAuthStateChange en Supabase v2 dispara INITIAL_SESSION
+    // de forma síncrona con la sesión actual — no necesitamos getSession().
+    // Esto elimina la race condition entre los dos.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔑 onAuthStateChange:", event, !!session?.user);
-
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        // Evitar doble fetch si getSession ya lo está haciendo
-        if (!fetchingRef.current) {
-          await fetchProfile(session.user.id);
+        const uid = session.user.id;
+        // Evitar doble fetch si ya estamos fetchando para este usuario
+        if (fetchingForId.current === uid) return;
+        fetchingForId.current = uid;
+        try {
+          await fetchProfile(uid);
+        } finally {
+          fetchingForId.current = null;
         }
       } else {
         setProfile(null);
       }
 
-      // Si llega antes que getSession (raro pero posible en mobile/PWA)
-      if (!initializedRef.current) {
-        initializedRef.current = true;
-        setLoading(false);
-      }
+      // setLoading(false) siempre en el primer evento, cualquiera sea
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

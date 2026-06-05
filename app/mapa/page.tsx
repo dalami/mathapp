@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -122,57 +122,56 @@ export default function MapaPage() {
   const [islands, setIslands] = useState<Island[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showAvatars, setShowAvatars] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
 
   const fetchedRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // FIX: depender de user.id + profile.stage en vez de los objetos enteros.
-  // Así no re-ejecuta si solo cambian coins/lives después de restore_lives.
   const userId = user?.id;
   const profileStage = profile?.stage;
 
+useEffect(() => {
+  fetchedRef.current = false;
+  const t = setTimeout(() => setLoadError(false), 0);
+  return () => clearTimeout(t);
+}, []);
+
+  // FIX: refreshProfile ya no está en las deps del useEffect principal.
+  // Lo guardamos en ref para poder usarlo dentro sin que cause re-ejecución.
+  const refreshProfileRef = useRef(refreshProfile);
   useEffect(() => {
-    // Resetear el guard cuando cambia de usuario o stage
-    fetchedRef.current = false;
-  }, [userId, profileStage]);
+    refreshProfileRef.current = refreshProfile;
+  }, [refreshProfile]);
 
-  useEffect(() => {
-    // Esperar que auth termine de cargar
-    if (authLoading) return;
-    // Si no hay usuario, redirigir a auth
-    if (!userId) {
-      router.replace("/auth");
-      return;
-    }
-    // Si hay usuario pero no hay profile todavía, esperar
-    if (!profile) return;
-    // Sin stage → elegir etapa
-    if (!profileStage) {
-      router.replace("/etapa");
-      return;
-    }
-    // Ya fetched → no repetir
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
+  const fetchData = useCallback(async () => {
+    if (!userId || !profileStage) return;
+    setLoading(true);
+    setLoadError(false);
 
-    async function fetchData() {
-      setLoading(true);
+    // Timeout de seguridad: si en 10s no terminó, mostrar error con retry
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      setLoadError(true);
+    }, 10000);
 
-      // restore_lives en background — no bloquea la carga del mapa
-      Promise.resolve(
-        supabase.rpc("restore_lives", { p_user_id: userId! })
-      )
-        .then(() => refreshProfile())
-        .catch(console.error);
+    try {
+      // restore_lives en background — no bloquea, y NO llama refreshProfile
+      // para evitar que el cambio de profile re-dispare el useEffect
+      void Promise.resolve(
+        supabase.rpc("restore_lives", { p_user_id: userId })
+      ).then(() => {
+        refreshProfileRef.current();
+      }).catch((e) => console.error("restore_lives:", e));
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
         supabase
           .from("islands")
           .select("id,name,icon,order_index")
-          .eq("stage", profileStage!)
+          .eq("stage", profileStage)
           .order("order_index"),
         supabase
           .from("levels")
@@ -184,13 +183,12 @@ export default function MapaPage() {
         supabase
           .from("user_progress")
           .select("level_id,stars")
-          .eq("user_id", userId!),
+          .eq("user_id", userId),
       ]);
 
       if (islandsRes.error) console.error("islands error:", islandsRes.error);
       if (levelsRes.error) console.error("levels error:", levelsRes.error);
-      if (progressRes.error)
-        console.error("progress error:", progressRes.error);
+      if (progressRes.error) console.error("progress error:", progressRes.error);
 
       const progressMap = new Map<string, number>(
         ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
@@ -224,31 +222,58 @@ export default function MapaPage() {
 
       setIslands((islandsRes.data ?? []) as Island[]);
       setLevels(processed);
+    } catch (e) {
+      console.error("fetchData error:", e);
+      setLoadError(true);
+    } finally {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setLoading(false);
     }
+  }, [userId, profileStage]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId) {
+      router.replace("/auth");
+      return;
+    }
+    // Si hay usuario pero no hay profile todavía, esperar
+    if (!profile) return;
+    if (!profileStage) {
+      router.replace("/etapa");
+      return;
+    }
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
 
     fetchData();
-  }, [authLoading, userId, profileStage, profile, router, refreshProfile]);
+  }, [authLoading, userId, profileStage, profile, router, fetchData]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
   }, [loading]);
 
-  // Restaurar vidas cuando el usuario vuelve a la app (PWA background)
+  // Restaurar vidas cuando la app vuelve del background (PWA)
   useEffect(() => {
     if (!userId) return;
 
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible") {
         await supabase.rpc("restore_lives", { p_user_id: userId });
-        refreshProfile();
+        refreshProfileRef.current();
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [userId, refreshProfile]);
+  }, [userId]);
 
   async function handleAvatarSelect(idx: number) {
     if (!user) return;
@@ -262,10 +287,29 @@ export default function MapaPage() {
     setShowAvatars(false);
   }
 
-  // Mientras auth carga o mientras fetchData todavía no terminó
-  if (authLoading || (userId && profile && loading)) return <LoadingScreen />;
+  // Pantalla de error con retry
+  if (loadError) {
+    return (
+      <div className="min-h-dvh bg-[#0a0a0f] flex flex-col items-center justify-center gap-5 font-[Nunito,sans-serif] px-6 text-center">
+        <div className="text-5xl">😵</div>
+        <div className="text-white/60 text-sm font-bold">
+          No se pudo cargar el mapa
+        </div>
+        <button
+          className="px-6 py-3 rounded-2xl bg-white/10 border border-white/15 text-white font-extrabold text-sm cursor-pointer hover:bg-white/18 transition-colors"
+          onClick={() => {
+            fetchedRef.current = false;
+            setLoadError(false);
+            fetchData();
+          }}
+        >
+          Reintentar 🔄
+        </button>
+      </div>
+    );
+  }
 
-  // Si no hay user/profile después de que auth terminó, ya hay redirect
+  if (authLoading || (userId && profile && loading)) return <LoadingScreen />;
   if (!user || !profile) return <LoadingScreen />;
 
   const levelsByIsland = islands.map((island) =>
@@ -345,7 +389,7 @@ export default function MapaPage() {
               lives={profile?.lives ?? 5}
               livesResetAt={profile?.lives_reset_at ?? null}
               userId={user?.id}
-              onRestored={() => refreshProfile()}
+              onRestored={() => refreshProfileRef.current()}
             />
             <button
               className="w-8 h-8 rounded-full bg-white/8 border border-white/12 text-white/70 text-lg cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-white/15 tracking-[-1px]"

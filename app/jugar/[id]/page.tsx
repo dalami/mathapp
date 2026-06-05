@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -94,8 +94,6 @@ export default function JugarPage() {
   const livesRef = useRef(5);
   const phaseRef = useRef<GamePhase>("loading");
   const fetchedRef = useRef(false);
-
-  // ── FIX: ref para evitar stale closure en handleFinish ──
   const nextLevelIdRef = useRef<string | null>(null);
 
   const restoreLives = useRestoreLives(user?.id);
@@ -183,7 +181,6 @@ export default function JugarPage() {
         const typedQs = qs as Question[];
         const selected = shuffle(typedQs).slice(0, typedLvl.questions_count);
 
-        // ── FIX: query robusto sin .single() ──
         const { data: nextLvls } = await supabase
           .from("levels")
           .select("id, order_index")
@@ -193,21 +190,11 @@ export default function JugarPage() {
           .limit(1);
 
         const nextLvl = nextLvls?.[0] ?? null;
-        console.log(
-          "🎯 nivel actual:",
-          typedLvl.id,
-          "order_index:",
-          typedLvl.order_index,
-          "island_id:",
-          typedLvl.island_id,
-        );
-        console.log("➡️ siguiente nivel encontrado:", nextLvl);
         errorsRef.current = 0;
         livesRef.current = currentLives;
 
         setLevel(typedLvl);
         setQuestions(selected);
-        // ── FIX: actualizar ref Y estado juntos ──
         nextLevelIdRef.current = nextLvl?.id ?? null;
         setNextLevelId(nextLvl?.id ?? null);
         setCurrentIdx(0);
@@ -285,13 +272,6 @@ export default function JugarPage() {
         }
       }
 
-      console.log(
-        "⭐ earnedStars:",
-        earnedStars,
-        "va a setear countdown?",
-        earnedStars > 0,
-      );
-
       if (earnedStars > 0) {
         setCountdown(3);
         let secs = 3;
@@ -301,17 +281,12 @@ export default function JugarPage() {
           if (secs <= 0 && countdownRef.current)
             clearInterval(countdownRef.current);
         }, 1000);
-        console.log(
-          "🏁 handleFinish - earnedStars:",
-          earnedStars,
-          "nextLevelIdRef.current:",
-          nextLevelIdRef.current,
-        );
 
-        // ── FIX: usar ref en lugar del estado para evitar stale closure ──
+        // FIX: usar router.push en lugar de window.location.href
+        // Así Next.js mantiene la sesión de Supabase sin forzar un full reload,
+        // eliminando la race condition que dejaba el mapa colgado.
         autoAdvanceRef.current = setTimeout(() => {
           const dest = nextLevelIdRef.current;
-          console.log("⏰ setTimeout ejecutado, dest:", dest);
           if (dest) {
             window.location.href = `/jugar/${dest}`;
           } else {
@@ -457,6 +432,7 @@ export default function JugarPage() {
       }
     }
 
+    // FIX: router.replace en lugar de window.location para no perder sesión
     router.replace("/mapa");
   }, [router, user]);
 
@@ -468,12 +444,15 @@ export default function JugarPage() {
         coins={coins}
         livesResetAt={livesResetAt}
         onClose={() => {
-          window.location.href = "/mapa";
+          // FIX: router en lugar de window.location para mantener sesión
+          router.replace("/mapa");
         }}
         onLivesRestored={(newLives, newCoins) => {
           setLives(newLives);
           setCoins(newCoins);
-          window.location.href = `/jugar/${levelId}`;
+          // FIX: resetear fetchedRef para que el nivel se recargue con las vidas nuevas
+          fetchedRef.current = false;
+          router.replace(`/jugar/${levelId}`);
         }}
       />
     );
@@ -498,6 +477,7 @@ export default function JugarPage() {
         countdown={countdown}
         onBack={handleExit}
         onRetry={handleRetry}
+        onShop={() => router.push("/tienda")}
       />
     );
   }
@@ -701,6 +681,7 @@ function FinishScreen({
   countdown,
   onBack,
   onRetry,
+  onShop,
 }: {
   stars: number;
   coinsEarned: number;
@@ -711,6 +692,7 @@ function FinishScreen({
   countdown: number | null;
   onBack: () => void;
   onRetry: () => void;
+  onShop: () => void;
 }) {
   const won = stars > 0;
   return (
@@ -780,6 +762,12 @@ function FinishScreen({
           onClick={onBack}
         >
           Volver al mapa 🗺️
+        </button>
+        <button
+          className="w-full py-4.5 rounded-[18px] border-none bg-white/8 text-white/60 font-[Nunito,sans-serif] text-base font-black cursor-pointer transition-all duration-120 border border-white/12 hover:bg-white/13"
+          onClick={onShop}
+        >
+          Tienda 🛒
         </button>
         {!won && (
           <button
