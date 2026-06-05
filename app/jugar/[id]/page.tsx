@@ -147,7 +147,7 @@ export default function JugarPage() {
         }
       }
       if (!currentProfile) {
-        router.replace("/mapa");
+        window.location.href = "/mapa";
         return;
       }
 
