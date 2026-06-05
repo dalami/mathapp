@@ -111,13 +111,7 @@ const STARS_BG = Array.from({ length: 30 }).map(() => ({
 
 export default function MapaPage() {
   const router = useRouter();
-  const {
-    profile,
-    user,
-    loading: authLoading,
-    signOut,
-    refreshProfile,
-  } = useAuth();
+  const { profile, user, loading: authLoading, signOut } = useAuth();
 
   const [islands, setIslands] = useState<Island[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
@@ -126,24 +120,41 @@ export default function MapaPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [showAvatars, setShowAvatars] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
-  const topRef = useRef<HTMLDivElement>(null);
 
+  // ─── Estado LOCAL de vidas/monedas ───────────────────────────
+  // Separado del profile global para no causar re-renders del useEffect principal.
+  // Se inicializa desde profile y se actualiza solo vía RPC o callbacks del LivesPill.
+  const [localLives, setLocalLives] = useState<number>(5);
+  const [localCoins, setLocalCoins] = useState<number>(0);
+  const [localLivesResetAt, setLocalLivesResetAt] = useState<string | null>(
+    null,
+  );
+
+  const topRef = useRef<HTMLDivElement>(null);
   const fetchedRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // userId y stage son los únicos datos del profile que necesita el useEffect principal.
+  // Extraerlos como primitivos evita que cambios en lives/coins/etc. reactiven el efecto.
   const userId = user?.id;
   const profileStage = profile?.stage;
 
+  // Cuando cambia el userId (login/logout), resetear el guard de fetch
   useEffect(() => {
     fetchedRef.current = false;
   }, [userId]);
 
-  // FIX: refreshProfile ya no está en las deps del useEffect principal.
-  // Lo guardamos en ref para poder usarlo dentro sin que cause re-ejecución.
-  const refreshProfileRef = useRef(refreshProfile);
+  // Sincronizar estado local con profile cuando profile llega por primera vez
+  // (solo si aún no hicimos fetch — después el estado local es la fuente de verdad)
   useEffect(() => {
-    refreshProfileRef.current = refreshProfile;
-  }, [refreshProfile]);
+    if (!profile) return;
+    if (!fetchedRef.current) {
+      // Inicialización: tomar los valores del profile antes de que el RPC los pise
+      setLocalLives(profile.lives ?? 5);
+      setLocalCoins(profile.coins ?? 0);
+      setLocalLivesResetAt(profile.lives_reset_at ?? null);
+    }
+  }, [profile]);
 
   const fetchData = useCallback(async () => {
     if (!userId || !profileStage) return;
@@ -157,13 +168,21 @@ export default function MapaPage() {
     }, 10000);
 
     try {
-      // restore_lives en background — no bloquea, y NO llama refreshProfile
-      // para evitar que el cambio de profile re-dispare el useEffect
-      void Promise.resolve(supabase.rpc("restore_lives", { p_user_id: userId }))
-        .then(() => {
-          refreshProfileRef.current();
-        })
-        .catch((e) => console.error("restore_lives:", e));
+      // restore_lives: actualiza SOLO el estado local, nunca toca el profile global.
+      // Esto es el cambio clave — sin refreshProfile() acá no hay loop posible.
+      void (async () => {
+        try {
+          const { data } = await supabase.rpc("restore_lives", {
+            p_user_id: userId,
+          });
+          if (data?.lives != null) {
+            setLocalLives(data.lives);
+            setLocalLivesResetAt(data.next_regen ?? null);
+          }
+        } catch {
+          // Si falla, el estado local ya fue inicializado desde profile
+        }
+      })();
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
         supabase
@@ -230,24 +249,30 @@ export default function MapaPage() {
     }
   }, [userId, profileStage]);
 
+  // ─── Efecto principal de carga ────────────────────────────────
+  // Dependencias: solo primitivos (userId, profileStage) + authLoading + router + fetchData.
+  // profile (objeto) está AFUERA de las deps — su identidad cambia en cada render.
+  // Los únicos campos que necesitamos (userId, profileStage) ya los extrajimos arriba.
   useEffect(() => {
     if (authLoading) return;
     if (!userId) {
       router.replace("/auth");
       return;
     }
-    // Si hay usuario pero no hay profile todavía, esperar
-    if (!profile) return;
+    if (!profile) return; // Esperar a que el profile llegue
     if (!profileStage) {
       router.replace("/etapa");
       return;
     }
-    if (fetchedRef.current) return;
+    if (fetchedRef.current) return; // Ya corrió — no volver a correr
     fetchedRef.current = true;
 
     fetchData();
   }, [authLoading, userId, profileStage, profile, router, fetchData]);
+  // Nota: profile está acá solo para el guard !profile — no para datos de vidas/monedas.
+  // fetchData no llama refreshProfile, así que profile no cambia dentro del efecto.
 
+  // Limpiar timeout al desmontar
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -264,8 +289,17 @@ export default function MapaPage() {
 
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible") {
-        await supabase.rpc("restore_lives", { p_user_id: userId });
-        refreshProfileRef.current();
+        try {
+          const { data } = await supabase.rpc("restore_lives", {
+            p_user_id: userId,
+          });
+          if (data?.lives != null) {
+            setLocalLives(data.lives);
+            setLocalLivesResetAt(data.next_regen ?? null);
+          }
+        } catch {
+          // Fallo silencioso
+        }
       }
     };
 
@@ -281,9 +315,12 @@ export default function MapaPage() {
       .from("profiles")
       .update({ avatar_id: idx + 1 })
       .eq("id", user.id);
-    await refreshProfile();
+    // Acá sí necesitamos refreshProfile porque cambió el avatar_id
+    // Pero lo hacemos directo en Supabase para no importar refreshProfile
     setSavingAvatar(false);
     setShowAvatars(false);
+    // Recargar la página para que AuthContext refleje el nuevo avatar
+    window.location.reload();
   }
 
   // Pantalla de error con retry
@@ -379,16 +416,20 @@ export default function MapaPage() {
               className="relative group flex items-center gap-1 bg-white/[0.07] border border-white/10 rounded-full px-2.5 py-1 text-xs font-extrabold text-white cursor-pointer hover:bg-white/12 transition-colors"
               onClick={() => router.push("/tienda")}
             >
-              🪙<span className="text-[#FFD700]">{profile?.coins ?? 0}</span>
+              🪙<span className="text-[#FFD700]">{localCoins}</span>
               <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-[#1a1a25] border border-white/10 text-white/70 text-[0.65rem] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none">
                 Tienda 🛒
               </span>
             </div>
+            {/* LivesPill usa estado local — onRestored actualiza estado local directamente */}
             <LivesPill
-              lives={profile?.lives ?? 5}
-              livesResetAt={profile?.lives_reset_at ?? null}
+              lives={localLives}
+              livesResetAt={localLivesResetAt}
               userId={user?.id}
-              onRestored={() => refreshProfileRef.current()}
+              onRestored={(newLives, nextRegen) => {
+                setLocalLives(newLives);
+                setLocalLivesResetAt(nextRegen);
+              }}
             />
             <button
               className="w-8 h-8 rounded-full bg-white/8 border border-white/12 text-white/70 text-lg cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-white/15 tracking-[-1px]"

@@ -95,28 +95,27 @@ export default function JugarPage() {
   const phaseRef = useRef<GamePhase>("loading");
   const fetchedRef = useRef(false);
   const nextLevelIdRef = useRef<string | null>(null);
-  // FIX: ref del profile para leerlo dentro del efecto sin ponerlo en las deps
+
+  // profileRef: permite leer el profile dentro del efecto sin ponerlo en deps
   const profileRef = useRef(profile);
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
 
-  const restoreLives = useRestoreLives(user?.id);
+  // restoreLives: tiene timeout propio de 4s definido en LivesBar
+  const restoreLives = useRestoreLives(user?.id, 4000);
 
-  useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-  useEffect(() => {
-    livesRef.current = lives;
-  }, [lives]);
-  // FIX: resetear fetchedRef cuando cambia el levelId (router.push misma ruta)
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { livesRef.current = lives; }, [lives]);
+
+  // Resetear fetchedRef cuando cambia el levelId (permite jugar el siguiente nivel)
   useEffect(() => {
     fetchedRef.current = false;
   }, [levelId]);
 
   const accentColor = ISLAND_COLORS[level?.island_id ?? 1] ?? "#4CAF50";
 
-  // ─── Limpiar timers al desmontar ─────────────────────────
+  // Limpiar todos los timers al desmontar
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -126,45 +125,45 @@ export default function JugarPage() {
     };
   }, []);
 
-  // ─── Cargar nivel ────────────────────────────────────────
-  // FIX: profile FUERA de las deps — se lee via profileRef para evitar
-  // que refreshProfile() (llamado en handleFinish) reactive este efecto
-  // mientras el setTimeout de autoAdvance todavía está corriendo.
+  // ─── Cargar nivel ─────────────────────────────────────────────
+  // Dependencias: solo user y levelId (primitivos estables).
+  // profile se lee via profileRef para no estar en las deps.
+  // restoreLives tiene su propio timeout — nunca bloquea indefinidamente.
   useEffect(() => {
     if (!user || !levelId) return;
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
     async function fetchLevel() {
-      // Esperamos a que profile esté disponible (puede tardar un tick)
+      // Esperar a que profile esté disponible (puede tardar un tick post-login)
+      // Máximo 2s de espera — si no llega, usamos defaults seguros
       let currentProfile = profileRef.current;
       if (!currentProfile) {
-        // Poll liviano: esperar hasta 2s a que el profile llegue
         for (let i = 0; i < 20; i++) {
           await new Promise((r) => setTimeout(r, 100));
           currentProfile = profileRef.current;
           if (currentProfile) break;
         }
       }
+
+      // Si profile nunca llegó, volver al mapa en lugar de congelarse
       if (!currentProfile) {
         window.location.href = "/mapa";
         return;
       }
 
       try {
+        // restore_lives con timeout propio (4s) — si falla o tarda, usamos datos del profile
         let currentLives = currentProfile.lives ?? 5;
-        let currentResetAt: string | null =
-          currentProfile.lives_reset_at ?? null;
+        let currentResetAt: string | null = currentProfile.lives_reset_at ?? null;
 
-        try {
-          const restored = await restoreLives();
-          if (restored) {
-            currentLives = restored.lives;
-            currentResetAt = restored.next_regen;
-          }
-        } catch {
-          // Si falla restore, usamos datos del perfil
+        const restored = await restoreLives();
+        if (restored) {
+          currentLives = restored.lives;
+          currentResetAt = restored.next_regen;
         }
+        // Si restored es null (timeout o falla), currentLives/currentResetAt
+        // ya tienen los valores del profile — el juego sigue normalmente.
 
         if (currentLives <= 0) {
           setLives(0);
@@ -243,7 +242,7 @@ export default function JugarPage() {
         else setTimeLeft(null);
         setPhase("playing");
       } catch (e) {
-        console.error("Error inesperado:", e);
+        console.error("Error inesperado en fetchLevel:", e);
         router.replace("/mapa");
       }
     }
@@ -251,7 +250,7 @@ export default function JugarPage() {
     fetchLevel();
   }, [user, levelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Shuffle opciones ────────────────────────────────────
+  // ─── Shuffle opciones ─────────────────────────────────────────
   useEffect(() => {
     if (questions[currentIdx]) {
       const opts = shuffle(questions[currentIdx].options);
@@ -260,7 +259,7 @@ export default function JugarPage() {
     }
   }, [currentIdx, questions]);
 
-  // ─── Finalizar nivel ─────────────────────────────────────
+  // ─── Finalizar nivel ──────────────────────────────────────────
   const handleFinish = useCallback(
     async (finalErrors: number) => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -293,12 +292,9 @@ export default function JugarPage() {
         } catch (e) {
           console.error("Error guardando resultado:", e);
         }
-        try {
-          // FIX: refreshProfile en background, sin await que bloquee el autoAdvance
-          refreshProfile().catch(() => {});
-        } catch (e) {
-          console.error("Error actualizando perfil:", e);
-        }
+        // refreshProfile en background — actualiza el profile global para cuando
+        // el usuario vuelva al mapa. No await para no bloquear el autoAdvance.
+        refreshProfile().catch(() => {});
       }
 
       if (earnedStars > 0) {
@@ -320,16 +316,8 @@ export default function JugarPage() {
           }
         }, 3500);
       }
-    }, // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      isSubmitting,
-      questions.length,
-      level,
-      timeLeft,
-      user,
-      levelId,
-      refreshProfile,
-    ],
+    },
+    [isSubmitting, questions.length, level, timeLeft, user, levelId, refreshProfile, router],
   );
 
   const handleFinishRef = useRef(handleFinish);
@@ -337,7 +325,7 @@ export default function JugarPage() {
     handleFinishRef.current = handleFinish;
   }, [handleFinish]);
 
-  // ─── Timer ───────────────────────────────────────────────
+  // ─── Timer ────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "playing" || timeLeft === null) return;
     if (timeLeft <= 0) {
@@ -353,7 +341,7 @@ export default function JugarPage() {
     };
   }, [timeLeft, phase]);
 
-  // ─── Avanzar pregunta ────────────────────────────────────
+  // ─── Avanzar pregunta ─────────────────────────────────────────
   const advanceQuestion = useCallback(
     (newErrors: number, correct: boolean) => {
       const isLast = currentIdx >= questions.length - 1;
@@ -370,7 +358,7 @@ export default function JugarPage() {
     [currentIdx, questions.length],
   );
 
-  // ─── Responder ───────────────────────────────────────────
+  // ─── Responder ────────────────────────────────────────────────
   const handleAnswer = useCallback(
     async (option: string) => {
       if (phaseRef.current !== "playing" || selectedOption) return;
@@ -415,7 +403,7 @@ export default function JugarPage() {
     [selectedOption, currentIdx, questions, user, advanceQuestion],
   );
 
-  // ─── Reintentar ──────────────────────────────────────────
+  // ─── Reintentar ───────────────────────────────────────────────
   const handleRetry = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (feedbackRef.current) clearTimeout(feedbackRef.current);
@@ -439,7 +427,7 @@ export default function JugarPage() {
     setPhase("playing");
   }, [questions, lives, level]);
 
-  // ─── Salir ───────────────────────────────────────────────
+  // ─── Salir ────────────────────────────────────────────────────
   const handleExit = useCallback(async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (feedbackRef.current) clearTimeout(feedbackRef.current);
@@ -460,7 +448,7 @@ export default function JugarPage() {
     router.replace("/mapa");
   }, [router, user]);
 
-  // ─── RENDERS ─────────────────────────────────────────────
+  // ─── RENDERS ──────────────────────────────────────────────────
   if (phase === "no_lives" && user) {
     return (
       <NoLivesModal
@@ -692,7 +680,7 @@ export default function JugarPage() {
   );
 }
 
-// ─── Pantalla de resultado ────────────────────────────────────
+// ─── Pantalla de resultado ─────────────────────────────────────
 function FinishScreen({
   stars,
   coinsEarned,

@@ -14,7 +14,8 @@ function msToMMSS(ms: number): string {
 }
 
 // ─── Versión compacta: topbar del mapa ───────────────────────
-// Cuando el timer llega a 0, llama al RPC y avisa al padre via onRestored
+// Cuando el timer llega a 0, llama al RPC y avisa al padre via onRestored.
+// NO llama refreshProfile — el padre actualiza su estado local directamente.
 export function LivesPill({
   lives,
   livesResetAt,
@@ -28,7 +29,10 @@ export function LivesPill({
   onClick?: () => void;
   onRestored?: (newLives: number, nextRegen: string | null) => void;
 }) {
-  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    if (!livesResetAt || lives >= MAX_LIVES) return 0;
+    return Math.max(0, new Date(livesResetAt).getTime() - Date.now());
+  });
 
   useEffect(() => {
     if (!livesResetAt || lives >= MAX_LIVES) return;
@@ -41,18 +45,20 @@ export function LivesPill({
 
       if (remaining === 0) {
         clearInterval(interval);
-
         if (!userId) return;
 
         // Pequeño delay por si el reloj del cliente está levemente adelantado
         await new Promise((r) => setTimeout(r, 1500));
 
-        const { data } = await supabase.rpc("restore_lives", {
-          p_user_id: userId,
-        });
-
-        if (data?.lives > 0 && onRestored) {
-          onRestored(data.lives, data.next_regen ?? null);
+        try {
+          const { data } = await supabase.rpc("restore_lives", {
+            p_user_id: userId,
+          });
+          if (data?.lives != null && onRestored) {
+            onRestored(data.lives, data.next_regen ?? null);
+          }
+        } catch {
+          // Fallo silencioso — el usuario puede recargar
         }
       }
     };
@@ -115,16 +121,16 @@ export function NoLivesModal({
       if (remaining === 0) {
         clearInterval(interval);
 
-        // Delay por desfase de reloj cliente/servidor
         await new Promise((r) => setTimeout(r, 1500));
 
-        const { data } = await supabase.rpc("restore_lives", {
-          p_user_id: userId,
-        });
-
-        if (data?.lives > 0) {
-          onLivesRestored(data.lives, localCoins);
-        } else {
+        try {
+          const { data } = await supabase.rpc("restore_lives", {
+            p_user_id: userId,
+          });
+          if (data?.lives > 0) {
+            onLivesRestored(data.lives, localCoins);
+            return;
+          }
           // Reintentar una vez más por si el servidor tardó un poco más
           await new Promise((r) => setTimeout(r, 3000));
           const { data: data2 } = await supabase.rpc("restore_lives", {
@@ -133,6 +139,8 @@ export function NoLivesModal({
           if (data2?.lives > 0) {
             onLivesRestored(data2.lives, localCoins);
           }
+        } catch {
+          // Fallo silencioso
         }
       }
     };
@@ -145,13 +153,18 @@ export function NoLivesModal({
   const handleBuyWithCoins = async () => {
     if (localCoins < 100 || buying) return;
     setBuying(true);
-    const { data } = await supabase.rpc("buy_life_with_coins", {
-      p_user_id: userId,
-    });
-    setBuying(false);
-    if (data?.ok) {
-      setLocalCoins(data.coins);
-      onLivesRestored(data.lives, data.coins);
+    try {
+      const { data } = await supabase.rpc("buy_life_with_coins", {
+        p_user_id: userId,
+      });
+      if (data?.ok) {
+        setLocalCoins(data.coins);
+        onLivesRestored(data.lives, data.coins);
+      }
+    } catch {
+      // Fallo silencioso
+    } finally {
+      setBuying(false);
     }
   };
 
@@ -214,17 +227,26 @@ export function NoLivesModal({
   );
 }
 
-// ─── Hook: restaura vidas al montar la pantalla ───────────────
-export function useRestoreLives(userId: string | undefined) {
+// ─── Hook: restaura vidas con timeout propio ──────────────────
+// Nunca bloquea más de `timeoutMs` ms. Si el RPC falla o tarda, devuelve null.
+export function useRestoreLives(
+  userId: string | undefined,
+  timeoutMs: number = 4000,
+) {
   const restore = useCallback(async () => {
     if (!userId) return null;
-    const { data } = await supabase.rpc("restore_lives", { p_user_id: userId });
-    return data as {
-      lives: number;
-      next_regen: string | null;
-      max: boolean;
-    } | null;
-  }, [userId]);
+    try {
+      const result = await Promise.race([
+        supabase.rpc("restore_lives", { p_user_id: userId }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+      ]);
+      if (!result) return null; // timeout
+      const { data } = result as { data: { lives: number; next_regen: string | null; max: boolean } | null };
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  }, [userId, timeoutMs]);
 
   return restore;
 }
