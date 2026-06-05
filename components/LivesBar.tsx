@@ -207,7 +207,7 @@ export function NoLivesModal({
         </button>
         <button
           className="w-full px-5 py-4 rounded-2xl border border-[rgba(255,215,0,0.25)] bg-[rgba(255,215,0,0.06)] text-[#FFD700] font-[Nunito,sans-serif] text-[0.92rem] font-extrabold cursor-pointer transition-colors duration-150 hover:bg-[rgba(255,215,0,0.12)]"
-          onClick={() => (window.location.href = "/tienda")}
+          onClick={onClose}
         >
           🛒 Ir a la tienda de monedas
         </button>
