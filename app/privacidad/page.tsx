@@ -2,7 +2,7 @@ export default function PrivacidadPage() {
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px", fontFamily: "sans-serif", lineHeight: 1.7 }}>
       <h1>Política de Privacidad — MathApp</h1>
-      <p><strong>Última actualización:</strong> 5 de junio de 2025</p>
+      <p><strong>Última actualización:</strong> 5 de junio de 2026</p>
 
       <h2>1. Datos que recopilamos</h2>
       <p>MathApp recopila únicamente el email y nombre de usuario para crear tu cuenta. No recopilamos datos de ubicación, contactos ni información sensible.</p>
