@@ -134,11 +134,9 @@ export default function MapaPage() {
   const userId = user?.id;
   const profileStage = profile?.stage;
 
-useEffect(() => {
-  fetchedRef.current = false;
-  const t = setTimeout(() => setLoadError(false), 0);
-  return () => clearTimeout(t);
-}, []);
+  useEffect(() => {
+    fetchedRef.current = false;
+  }, [userId]);
 
   // FIX: refreshProfile ya no está en las deps del useEffect principal.
   // Lo guardamos en ref para poder usarlo dentro sin que cause re-ejecución.
@@ -161,11 +159,11 @@ useEffect(() => {
     try {
       // restore_lives en background — no bloquea, y NO llama refreshProfile
       // para evitar que el cambio de profile re-dispare el useEffect
-      void Promise.resolve(
-        supabase.rpc("restore_lives", { p_user_id: userId })
-      ).then(() => {
-        refreshProfileRef.current();
-      }).catch((e) => console.error("restore_lives:", e));
+      void Promise.resolve(supabase.rpc("restore_lives", { p_user_id: userId }))
+        .then(() => {
+          refreshProfileRef.current();
+        })
+        .catch((e) => console.error("restore_lives:", e));
 
       const [islandsRes, levelsRes, progressRes] = await Promise.all([
         supabase
@@ -188,7 +186,8 @@ useEffect(() => {
 
       if (islandsRes.error) console.error("islands error:", islandsRes.error);
       if (levelsRes.error) console.error("levels error:", levelsRes.error);
-      if (progressRes.error) console.error("progress error:", progressRes.error);
+      if (progressRes.error)
+        console.error("progress error:", progressRes.error);
 
       const progressMap = new Map<string, number>(
         ((progressRes.data ?? []) as ProgressRow[]).map((p) => [
