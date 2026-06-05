@@ -315,7 +315,7 @@ export default function JugarPage() {
   }
 }, 3500);
       }
-    },
+    }, // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       isSubmitting,
       questions.length,

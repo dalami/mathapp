@@ -1,6 +1,6 @@
 const CACHE_NAME = "mathapp-v3";
 
-const STATIC_ASSETS = ["/", "/auth", "/mapa", "/manifest.json"];
+const STATIC_ASSETS = ["/", "/auth", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -35,6 +35,7 @@ self.addEventListener("fetch", (event) => {
     url.hostname.includes("googleapis.com") ||
     url.hostname.includes("fonts.gstatic.com") ||
     url.pathname.startsWith("/jugar/") ||
+    url.pathname.startsWith("/mapa") ||
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/auth/")
   ) {
@@ -56,9 +57,7 @@ self.addEventListener("fetch", (event) => {
         return caches.match(event.request).then((cached) => {
           if (cached) return cached;
           if (event.request.destination === "document") {
-            return caches
-              .match("/mapa")
-              .then((r) => r || caches.match("/auth"));
+            return caches.match("/auth");
           }
           return new Response("", { status: 408 });
         });
