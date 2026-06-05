@@ -306,14 +306,14 @@ export default function JugarPage() {
             clearInterval(countdownRef.current);
         }, 1000);
 
-        autoAdvanceRef.current = setTimeout(() => {
-          const dest = nextLevelIdRef.current;
-          if (dest) {
-            window.location.href = `/jugar/${dest}`;
-          } else {
-            window.location.href = `/mapa`;
-          }
-        }, 3500);
+     autoAdvanceRef.current = setTimeout(() => {
+  const dest = nextLevelIdRef.current;
+  if (dest) {
+    router.push(`/jugar/${dest}`);
+  } else {
+    router.push(`/mapa`);
+  }
+}, 3500);
       }
     },
     [
