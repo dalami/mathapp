@@ -1,4 +1,4 @@
-const CACHE_NAME = "mathapp-v4";
+const CACHE_NAME = "mathapp-v3";
 
 const STATIC_ASSETS = ["/", "/auth", "/mapa", "/manifest.json"];
 
