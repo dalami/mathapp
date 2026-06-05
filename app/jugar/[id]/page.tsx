@@ -109,6 +109,10 @@ export default function JugarPage() {
   useEffect(() => {
     livesRef.current = lives;
   }, [lives]);
+  // FIX: resetear fetchedRef cuando cambia el levelId (router.push misma ruta)
+  useEffect(() => {
+    fetchedRef.current = false;
+  }, [levelId]);
 
   const accentColor = ISLAND_COLORS[level?.island_id ?? 1] ?? "#4CAF50";
 
@@ -149,7 +153,8 @@ export default function JugarPage() {
 
       try {
         let currentLives = currentProfile.lives ?? 5;
-        let currentResetAt: string | null = currentProfile.lives_reset_at ?? null;
+        let currentResetAt: string | null =
+          currentProfile.lives_reset_at ?? null;
 
         try {
           const restored = await restoreLives();
@@ -306,14 +311,14 @@ export default function JugarPage() {
             clearInterval(countdownRef.current);
         }, 1000);
 
-     autoAdvanceRef.current = setTimeout(() => {
-  const dest = nextLevelIdRef.current;
-  if (dest) {
-    router.push(`/jugar/${dest}`);
-  } else {
-    router.push(`/mapa`);
-  }
-}, 3500);
+        autoAdvanceRef.current = setTimeout(() => {
+          const dest = nextLevelIdRef.current;
+          if (dest) {
+            router.push(`/jugar/${dest}`);
+          } else {
+            router.push(`/mapa`);
+          }
+        }, 3500);
       }
     }, // eslint-disable-next-line react-hooks/exhaustive-deps
     [
