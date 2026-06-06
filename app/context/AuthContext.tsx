@@ -214,7 +214,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: "google",
       options: {
         redirectTo,
-        queryParams: { prompt: "select_account", access_type: "offline" },
+        queryParams: {
+          prompt: "select_account",
+          access_type: "offline",
+        },
+        skipBrowserRedirect: false,
       },
     });
     return { error: error?.message ?? null };

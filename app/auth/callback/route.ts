@@ -8,7 +8,6 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,34 +16,26 @@ export async function GET(request: Request) {
           getAll: () => cookieStore.getAll(),
           setAll: (cookiesToSet) => {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
+              cookieStore.set(name, value, options)
             );
           },
         },
-      },
+      }
     );
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
           .select("stage")
           .eq("id", user.id)
           .single();
-
-        const destination = profile?.stage
-          ? "/mapa?refresh=1"
-          : "/etapa?refresh=1";
-
+        const destination = profile?.stage ? "/mapa" : "/etapa";
         return NextResponse.redirect(`${origin}${destination}`);
       }
-
       return NextResponse.redirect(`${origin}/mapa`);
     }
   }
