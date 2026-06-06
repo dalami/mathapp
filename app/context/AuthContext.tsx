@@ -107,30 +107,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // INITIAL_SESSION: solo procesar si getSession() no lo hizo antes
+        // INITIAL_SESSION: ignorar si getSession() ya lo procesó
         if (event === "INITIAL_SESSION") {
           if (initializedRef.current) return;
           initializedRef.current = true;
         }
 
-        setSession(session);
-        setUser(session?.user ?? null);
-
+        // Para SIGNED_IN post-OAuth: setear user/session Y fetchProfile
+        // ANTES de setLoading(false) para evitar renders intermedios
+        // donde user existe pero profile es null.
         if (session?.user) {
           const uid = session.user.id;
-          if (fetchingForId.current === uid) return;
-          fetchingForId.current = uid;
-          try {
-            await fetchProfile(uid);
-          } finally {
-            fetchingForId.current = null;
+          if (fetchingForId.current !== uid) {
+            fetchingForId.current = uid;
+            try {
+              // Setear session/user
+              setSession(session);
+              setUser(session.user);
+              // Esperar profile antes de liberar loading
+              await fetchProfile(uid);
+            } finally {
+              fetchingForId.current = null;
+            }
           }
         } else {
+          setSession(session);
+          setUser(null);
           setProfile(null);
         }
 
-        // En eventos posteriores a INITIAL_SESSION, loading ya fue seteado
-        // por init(). Solo actualizamos si todavía estaba en true (edge case).
         setLoading(false);
       }
     );
@@ -155,10 +160,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+
+    // Detectar si estamos en TWA (Android app) o browser normal.
+    // En TWA, el redirect OAuth abre Chrome externo y no vuelve a la app.
+    // Usamos skipBrowserRedirect + window.location.href para manejarlo manualmente.
+    // En browser normal, dejamos que Supabase maneje el redirect directamente.
+    const isTWA =
+      document.referrer.includes("android-app://") ||
+      window.matchMedia("(display-mode: standalone)").matches;
+
+    if (isTWA) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: {
+            prompt: "select_account",
+            access_type: "offline",
+          },
+        },
+      });
+      if (error || !data?.url) return { error: error?.message ?? "Error al iniciar Google" };
+      window.location.href = data.url;
+      return { error: null };
+    }
+
+    // Browser normal — redirect estándar
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo,
         queryParams: {
           prompt: "select_account",
           access_type: "offline",

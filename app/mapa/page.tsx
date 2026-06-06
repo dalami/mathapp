@@ -163,29 +163,26 @@ export default function MapaPage() {
   const loadedForRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Si tenemos user y profile, arrancar aunque authLoading sea true.
-    // Esto cubre el caso post-OAuth donde getSession() setea user antes
-    // de que setLoading(false) corra en el AuthContext.
-    const ready = !authLoading || (!!user && !!profile);
-    if (!ready) return;
+    // Esperar siempre a que authLoading sea false — garantiza que
+    // tanto user como profile están en su estado final.
+    if (authLoading) return;
 
-    // Sin usuario — esperar a que authLoading termine para redirigir
+    // Sin usuario → auth
     if (!user) {
-      if (authLoading) return;
       router.replace("/auth");
       return;
     }
 
-    // Sin profile todavía — esperar
+    // Sin profile → esperar (se re-dispara cuando profile llega)
     if (!profile) return;
 
-    // Sin stage o stage inválido — redirigir a selección de etapa
+    // Sin stage o stage inválido → etapa
     if (!profile.stage || profile.stage < 1 || profile.stage > 4) {
       router.replace("/etapa");
       return;
     }
 
-    // Ya cargamos para este usuario — no volver a cargar
+    // Guard: ya cargamos para este usuario
     if (loadedForRef.current === user.id) return;
     loadedForRef.current = user.id;
 
@@ -211,6 +208,7 @@ export default function MapaPage() {
   // profile está en deps para detectar cuando llegue, pero el guard loadedForRef
   // garantiza que loadMapData corre UNA SOLA VEZ por mount.
   }, [authLoading, user, profile, router]); 
+
   // Vidas se actualizan al volver del background (PWA)
   useEffect(() => {
     if (!user) return;
