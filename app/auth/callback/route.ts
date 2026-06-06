@@ -27,7 +27,6 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Verificar si el usuario ya tiene stage configurado
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
@@ -37,10 +36,32 @@ export async function GET(request: Request) {
           .eq("id", user.id)
           .single();
 
-        // Si no tiene stage → es usuario nuevo → selección de etapa
-        // Si tiene stage → usuario existente → mapa
         const destination = profile?.stage ? "/mapa" : "/etapa";
-        return NextResponse.redirect(`${origin}${destination}`);
+
+        // Página HTML intermedia que fuerza al cliente a leer la sesión
+        // antes de navegar — resuelve el problema de cookies en TWA/WebView
+        return new NextResponse(
+          `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <script>
+    // Forzar que el cliente lea la sesión actualizada antes de navegar
+    // Pequeño delay para que las cookies se propaguen al WebView
+    setTimeout(function() {
+      window.location.replace("${destination}");
+    }, 100);
+  </script>
+</body>
+</html>`,
+          {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          }
+        );
       }
 
       return NextResponse.redirect(`${origin}/mapa`);
