@@ -2,9 +2,9 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "ar.com.mathapp",
+    "package_name": "com.mathapp.app",
     "sha256_cert_fingerprints": [
-      "C0:75:D8:58:9E:56:37:0C:D3:FB:A9:CC:02:20:60:A4:BA:1D:17:12:F4:C5:FA:7C:F9:62:B6:49:3F:11:9E:BD"
+      "88:E6:BE:FC:1C:D3:FB:4A:C7:ED:DA:08:6B:2A:08:76:B7:20:0B:71:7D:04:EA:A9:0F:C2:12:3A:3D:F8:FA:57"
     ]
   }
 }]
