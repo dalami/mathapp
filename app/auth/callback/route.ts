@@ -17,17 +17,19 @@ export async function GET(request: Request) {
           getAll: () => cookieStore.getAll(),
           setAll: (cookiesToSet) => {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
           },
         },
-      }
+      },
     );
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (user) {
         const { data: profile } = await supabase
@@ -36,7 +38,9 @@ export async function GET(request: Request) {
           .eq("id", user.id)
           .single();
 
-        const destination = profile?.stage ? "/mapa" : "/etapa";
+        const destination = profile?.stage
+          ? "/mapa?refresh=1"
+          : "/etapa?refresh=1";
 
         return NextResponse.redirect(`${origin}${destination}`);
       }

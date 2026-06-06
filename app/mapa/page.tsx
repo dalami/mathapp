@@ -274,6 +274,16 @@ export default function MapaPage() {
   // (comparando user.id en el efecto, no en el cleanup).
   const loadedForRef = useRef<string | null>(null);
 
+  // Forzar reload si viene del callback OAuth — garantiza sesión fresca
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("refresh") === "1") {
+      window.history.replaceState({}, "", "/mapa");
+      window.location.reload();
+    }
+  }, []);
+
   // ─── Efecto principal ───────────────────────────────────────────────────────
   useEffect(() => {
     // Esperar siempre a que authLoading sea false
