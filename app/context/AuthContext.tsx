@@ -12,7 +12,6 @@ import {
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 
-// ─── Tipos ───────────────────────────────────────────────────
 export interface Profile {
   id: string;
   display_name: string;
@@ -31,6 +30,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  profileError: boolean;        // ← NUEVO: profile falló, no va a llegar
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
@@ -41,41 +41,64 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+// Timeout de seguridad para fetchProfile: si Supabase no responde en 8s, es un error.
+const PROFILE_TIMEOUT_MS = 8_000;
 
-  // Guard: evitar fetch de profile concurrente para el mismo usuario
-  const fetchingForId = useRef<string | null>(null);
-  // Guard: evitar que onAuthStateChange pise una sesión que getSession ya procesó
-  const initializedRef = useRef(false);
-
-  const fetchProfile = useCallback(async (userId: string) => {
+async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
+  try {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
+      .abortSignal(controller.signal)
       .single();
-    if (!error && data) setProfile(data as Profile);
-    return { data, error };
-  }, []);
+    if (error || !data) return null;
+    return data as Profile;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileError, setProfileError] = useState(false); // ← NUEVO
+  const [loading, setLoading] = useState(true);
+
+  const fetchingForId = useRef<string | null>(null);
+  const initializedRef = useRef(false);
   const userRef = useRef<User | null>(null);
+
   useEffect(() => { userRef.current = user; }, [user]);
 
+  const fetchProfile = useCallback(async (userId: string) => {
+    setProfileError(false);
+    const data = await fetchProfileWithTimeout(userId);
+    if (data) {
+      setProfile(data);
+    } else {
+      // Profile no llegó (error de red, RLS, fila faltante)
+      // Lo comunicamos explícitamente en lugar de dejar null silencioso.
+      setProfileError(true);
+    }
+  }, []);
+
   const refreshProfile = useCallback(async () => {
-    if (userRef.current) await fetchProfile(userRef.current.id);
-  }, [fetchProfile]);
+    if (userRef.current) {
+      const data = await fetchProfileWithTimeout(userRef.current.id);
+      if (data) {
+        setProfile(data);
+        setProfileError(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    // ─── Inicialización en dos pasos ─────────────────────────────────────────
-    // Paso 1: getSession() para TWA/WebView donde onAuthStateChange puede
-    // tardar o no disparar INITIAL_SESSION si las cookies no están listas.
-    // Paso 2: onAuthStateChange para cambios posteriores (login, logout, refresh).
-    // El guard initializedRef evita que ambos procesen la misma sesión.
-
     async function init() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -83,15 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(session);
           setUser(session.user);
           initializedRef.current = true;
-
           const uid = session.user.id;
           if (fetchingForId.current !== uid) {
             fetchingForId.current = uid;
-            try {
-              await fetchProfile(uid);
-            } finally {
-              fetchingForId.current = null;
-            }
+            try { await fetchProfile(uid); }
+            finally { fetchingForId.current = null; }
           }
         } else {
           initializedRef.current = true;
@@ -107,24 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // INITIAL_SESSION: ignorar si getSession() ya lo procesó
         if (event === "INITIAL_SESSION") {
           if (initializedRef.current) return;
           initializedRef.current = true;
         }
-
-        // Para SIGNED_IN post-OAuth: setear user/session Y fetchProfile
-        // ANTES de setLoading(false) para evitar renders intermedios
-        // donde user existe pero profile es null.
         if (session?.user) {
           const uid = session.user.id;
           if (fetchingForId.current !== uid) {
             fetchingForId.current = uid;
             try {
-              // Setear session/user
               setSession(session);
               setUser(session.user);
-              // Esperar profile antes de liberar loading
               await fetchProfile(uid);
             } finally {
               fetchingForId.current = null;
@@ -134,8 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(session);
           setUser(null);
           setProfile(null);
+          setProfileError(false);
         }
-
         setLoading(false);
       }
     );
@@ -161,11 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     const redirectTo = `${window.location.origin}/auth/callback`;
-
-    // Detectar si estamos en TWA (Android app) o browser normal.
-    // En TWA, el redirect OAuth abre Chrome externo y no vuelve a la app.
-    // Usamos skipBrowserRedirect + window.location.href para manejarlo manualmente.
-    // En browser normal, dejamos que Supabase maneje el redirect directamente.
     const isTWA =
       document.referrer.includes("android-app://") ||
       window.matchMedia("(display-mode: standalone)").matches;
@@ -173,30 +180,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isTWA) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          queryParams: {
-            prompt: "select_account",
-            access_type: "offline",
-          },
-        },
+        options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: "select_account", access_type: "offline" } },
       });
       if (error || !data?.url) return { error: error?.message ?? "Error al iniciar Google" };
       window.location.href = data.url;
       return { error: null };
     }
 
-    // Browser normal — redirect estándar
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          prompt: "select_account",
-          access_type: "offline",
-        },
-      },
+      options: { redirectTo, queryParams: { prompt: "select_account", access_type: "offline" } },
     });
     return { error: error?.message ?? null };
   };
@@ -204,11 +197,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setProfileError(false);
   };
 
   return (
     <AuthContext.Provider value={{
-      user, session, profile, loading,
+      user, session, profile, profileError, loading,
       signInWithEmail, signUpWithEmail, signInWithGoogle,
       signOut, refreshProfile,
     }}>
