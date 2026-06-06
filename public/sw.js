@@ -1,22 +1,26 @@
-const CACHE_NAME = "mathapp-v5";
+const CACHE_NAME = "mathapp-v6";
 
 // Solo cacheamos assets estáticos reales — nunca páginas de la app
 const STATIC_ASSETS = ["/manifest.json"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)),
   );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      )
-    )
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
+        ),
+      ),
   );
   self.clients.claim();
 });
@@ -56,14 +60,16 @@ self.addEventListener("fetch", (event) => {
       .then((response) => {
         if (response && response.status === 200) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, clone));
         }
         return response;
       })
       .catch(() =>
-        caches.match(event.request).then((cached) =>
-          cached ?? new Response("", { status: 408 })
-        )
-      )
+        caches
+          .match(event.request)
+          .then((cached) => cached ?? new Response("", { status: 408 })),
+      ),
   );
 });
