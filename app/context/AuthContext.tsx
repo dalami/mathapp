@@ -155,11 +155,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    // En TWA/Android el redirect OAuth abre Chrome externo y no vuelve.
+    // Usamos skipBrowserRedirect + openURL manual para que el WebView lo maneje.
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+        queryParams: {
+          prompt: "select_account", // Siempre mostrar selector de cuenta de Google
+          access_type: "offline",
+        },
+      },
     });
-    return { error: error?.message ?? null };
+    if (error || !data?.url) return { error: error?.message ?? "Error al iniciar Google" };
+    // Abrir en el mismo contexto — la TWA captura la URL y la maneja internamente
+    window.location.href = data.url;
+    return { error: null };
   };
 
   const signOut = async () => {

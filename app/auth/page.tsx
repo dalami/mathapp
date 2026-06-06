@@ -117,6 +117,7 @@ function AuthForm() {
   const [displayName, setDisplayName] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -172,8 +173,13 @@ function AuthForm() {
 
   const handleGoogle = async () => {
     setError(null);
+    setGoogleLoading(true);
     const { error } = await signInWithGoogle();
-    if (error) setError(translateError(error));
+    // Si no hay error, la página va a redirigir — no reseteamos loading
+    if (error) {
+      setError(translateError(error));
+      setGoogleLoading(false);
+    }
   };
 
   if (loading) return null;
@@ -234,10 +240,14 @@ function AuthForm() {
         type="button"
         className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-white/95 text-[#333] border-none rounded-2xl text-[0.95rem] font-bold cursor-pointer transition-all duration-200 mb-4 hover:bg-white hover:-translate-y-px hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
         onClick={handleGoogle}
-        disabled={submitting}
+        disabled={submitting || googleLoading}
       >
-        <IconGoogle />
-        Continuar con Google
+        {googleLoading ? (
+          <span className="w-5 h-5 border-2 border-[#333]/30 border-t-[#333] rounded-full animate-spin" />
+        ) : (
+          <IconGoogle />
+        )}
+        {googleLoading ? "Conectando con Google..." : "Continuar con Google"}
       </button>
 
       {/* Divider */}
