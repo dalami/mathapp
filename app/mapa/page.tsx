@@ -257,8 +257,8 @@ export default function MapaPage() {
     // (profile está en deps, pero extraemos solo el stage para el guard)
     if (!profile) return;
 
-    // Sin stage — redirigir a selección de etapa
-    if (!profile.stage) {
+    // Sin stage o stage inválido — redirigir a selección de etapa
+    if (!profile.stage || profile.stage < 1 || profile.stage > 4) {
       router.replace("/etapa");
       return;
     }
