@@ -274,34 +274,39 @@ export default function MapaPage() {
   // (comparando user.id en el efecto, no en el cleanup).
   const loadedForRef = useRef<string | null>(null);
 
-  // Resetear guard cuando cambia el usuario
-  useEffect(() => {
-    loadedForRef.current = null;
-  }, [user?.id]);
-
   // ─── Efecto principal ───────────────────────────────────────────────────────
   useEffect(() => {
+    // Esperar siempre a que authLoading sea false
     if (authLoading) return;
 
+    // Sin usuario → auth
     if (!user) {
       router.replace("/auth");
       return;
     }
 
+    // FIX 1: si profile falló definitivamente, no hacemos nada acá.
+    // El render lo detecta vía `profileError` directamente (sin setState en el efecto).
     if (!profile) return;
 
+    // Sin stage o stage inválido → etapa
     if (!profile.stage || profile.stage < 1 || profile.stage > 4) {
       router.replace("/etapa");
       return;
     }
 
+    // FIX 2: el guard compara user.id actual con el que ya cargamos.
+    // Si son distintos (cambio de cuenta), reseteamos y recargamos.
+    // Si son iguales, no hacemos nada (ya cargado).
     if (loadedForRef.current === user.id) return;
     loadedForRef.current = user.id;
 
+    // Inicializar estado local desde profile (antes de que el RPC lo pise)
     setLocalLives(profile.lives ?? 5);
     setLocalCoins(profile.coins ?? 0);
     setLocalLivesResetAt(profile.lives_reset_at ?? null);
 
+    // Cargar el mapa
     const controller = new AbortController();
     loadMapData(user.id, profile.stage, controller.signal, {
       setLoading,
@@ -313,9 +318,10 @@ export default function MapaPage() {
       setLocalCoins,
     });
 
+    // FIX 2: cleanup solo cancela el fetch en vuelo.
+    // NO reseteamos loadedForRef acá → sobrevive remounts de StrictMode.
     return () => {
       controller.abort();
-      loadedForRef.current = null; // ← resetear al desmontar
     };
   }, [authLoading, user, profile, profileError, router]);
 
