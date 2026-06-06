@@ -3,7 +3,6 @@ import { Nunito } from "next/font/google";
 import { AuthProvider } from "./context/AuthContext";
 import "./globals.css";
 import PWARegister from "../components/PWARegister";
-<link rel="manifest" href="/manifest.json" /> 
 
 const nunito = Nunito({
   subsets: ["latin"],
