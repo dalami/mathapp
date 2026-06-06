@@ -30,7 +30,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  profileError: boolean;        // ← NUEVO: profile falló, no va a llegar
+  profileError: boolean;
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
@@ -41,7 +41,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Timeout de seguridad para fetchProfile: si Supabase no responde en 8s, es un error.
 const PROFILE_TIMEOUT_MS = 8_000;
 
 async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
@@ -67,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileError, setProfileError] = useState(false); // ← NUEVO
+  const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchingForId = useRef<string | null>(null);
@@ -82,8 +81,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
       setProfile(data);
     } else {
-      // Profile no llegó (error de red, RLS, fila faltante)
-      // Lo comunicamos explícitamente en lugar de dejar null silencioso.
       setProfileError(true);
     }
   }, []);
@@ -162,7 +159,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmail = async (email: string, password: string, displayName: string) => {
     const { error } = await supabase.auth.signUp({
-      email, password,
+      email,
+      password,
       options: {
         data: { full_name: displayName },
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
@@ -172,24 +170,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const isTWA =
-      document.referrer.includes("android-app://") ||
-      window.matchMedia("(display-mode: standalone)").matches;
-
-    if (isTWA) {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: "select_account", access_type: "offline" } },
-      });
-      if (error || !data?.url) return { error: error?.message ?? "Error al iniciar Google" };
-      window.location.href = data.url;
-      return { error: null };
-    }
-
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo, queryParams: { prompt: "select_account", access_type: "offline" } },
+      options: {
+        redirectTo,
+        queryParams: { prompt: "select_account", access_type: "offline" },
+      },
     });
     return { error: error?.message ?? null };
   };
