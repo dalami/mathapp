@@ -1,4 +1,4 @@
-const CACHE_NAME = "mathapp-v6";
+const CACHE_NAME = "mathapp-v7";
 
 // Solo cacheamos assets estáticos reales — nunca páginas de la app
 const STATIC_ASSETS = ["/manifest.json"];
