@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: 'MathApp',
   webDir: 'out',
   server: {
-    url: 'https://tu-app.vercel.app',
-    cleartext: true,
+    url: 'https://mathapp-eight.vercel.app',
+    cleartext: false,
   },
 };
 
