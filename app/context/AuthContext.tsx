@@ -32,15 +32,8 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signInWithEmail: (
-    email: string,
-    password: string,
-  ) => Promise<{ error: string | null }>;
-  signUpWithEmail: (
-    email: string,
-    password: string,
-    displayName: string,
-  ) => Promise<{ error: string | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -70,9 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const userRef = useRef<User | null>(null);
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const refreshProfile = useCallback(async () => {
     if (userRef.current) await fetchProfile(userRef.current.id);
@@ -87,9 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function init() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setSession(session);
           setUser(session.user);
@@ -116,55 +105,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // INITIAL_SESSION: solo procesar si getSession() no lo hizo antes
-      if (event === "INITIAL_SESSION") {
-        if (initializedRef.current) return;
-        initializedRef.current = true;
-      }
-
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const uid = session.user.id;
-        if (fetchingForId.current === uid) return;
-        fetchingForId.current = uid;
-        try {
-          await fetchProfile(uid);
-        } finally {
-          fetchingForId.current = null;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        // INITIAL_SESSION: solo procesar si getSession() no lo hizo antes
+        if (event === "INITIAL_SESSION") {
+          if (initializedRef.current) return;
+          initializedRef.current = true;
         }
-      } else {
-        setProfile(null);
-      }
 
-      // En eventos posteriores a INITIAL_SESSION, loading ya fue seteado
-      // por init(). Solo actualizamos si todavía estaba en true (edge case).
-      setLoading(false);
-    });
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const uid = session.user.id;
+          if (fetchingForId.current === uid) return;
+          fetchingForId.current = uid;
+          try {
+            await fetchProfile(uid);
+          } finally {
+            fetchingForId.current = null;
+          }
+        } else {
+          setProfile(null);
+        }
+
+        // En eventos posteriores a INITIAL_SESSION, loading ya fue seteado
+        // por init(). Solo actualizamos si todavía estaba en true (edge case).
+        setLoading(false);
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   };
 
-  const signUpWithEmail = async (
-    email: string,
-    password: string,
-    displayName: string,
-  ) => {
+  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email, password,
       options: {
         data: { full_name: displayName },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -193,19 +174,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        loading,
-        signInWithEmail,
-        signUpWithEmail,
-        signInWithGoogle,
-        signOut,
-        refreshProfile,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user, session, profile, loading,
+      signInWithEmail, signUpWithEmail, signInWithGoogle,
+      signOut, refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   );
