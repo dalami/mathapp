@@ -32,8 +32,15 @@ interface AuthContextType {
   profile: Profile | null;
   profileError: boolean;
   loading: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
+  signInWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -43,7 +50,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_TIMEOUT_MS = 8_000;
 
-async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
+async function fetchProfileWithTimeout(
+  userId: string,
+): Promise<Profile | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
   try {
@@ -73,7 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initializedRef = useRef(false);
   const userRef = useRef<User | null>(null);
 
-  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const fetchProfile = useCallback(async (userId: string) => {
     setProfileError(false);
@@ -98,7 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function init() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (session?.user) {
           setSession(session);
           setUser(session.user);
@@ -106,8 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const uid = session.user.id;
           if (fetchingForId.current !== uid) {
             fetchingForId.current = uid;
-            try { await fetchProfile(uid); }
-            finally { fetchingForId.current = null; }
+            try {
+              await fetchProfile(uid);
+            } finally {
+              fetchingForId.current = null;
+            }
           }
         } else {
           initializedRef.current = true;
@@ -121,43 +137,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "INITIAL_SESSION") {
-          if (initializedRef.current) return;
-          initializedRef.current = true;
-        }
-        if (session?.user) {
-          const uid = session.user.id;
-          if (fetchingForId.current !== uid) {
-            fetchingForId.current = uid;
-            try {
-              setSession(session);
-              setUser(session.user);
-              await fetchProfile(uid);
-            } finally {
-              fetchingForId.current = null;
-            }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "INITIAL_SESSION") {
+        if (initializedRef.current) return;
+        initializedRef.current = true;
+      }
+
+      if (session?.user) {
+        const uid = session.user.id;
+        // Siempre setear session/user
+        setSession(session);
+        setUser(session.user);
+
+        // Fetchear profile solo si no hay otro fetch en curso para este uid
+        if (fetchingForId.current !== uid) {
+          fetchingForId.current = uid;
+          try {
+            await fetchProfile(uid);
+          } finally {
+            fetchingForId.current = null;
           }
         } else {
-          setSession(session);
-          setUser(null);
-          setProfile(null);
-          setProfileError(false);
+          // Hay un fetch en curso — esperar a que termine
+          // antes de liberar loading
+          await new Promise<void>((resolve) => {
+            const interval = setInterval(() => {
+              if (fetchingForId.current !== uid) {
+                clearInterval(interval);
+                resolve();
+              }
+            }, 50);
+          });
         }
-        setLoading(false);
+      } else {
+        setSession(session);
+        setUser(null);
+        setProfile(null);
+        setProfileError(false);
       }
-    );
+
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     return { error: error?.message ?? null };
   };
 
-  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+  const signUpWithEmail = async (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -188,11 +227,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{
-      user, session, profile, profileError, loading,
-      signInWithEmail, signUpWithEmail, signInWithGoogle,
-      signOut, refreshProfile,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        profileError,
+        loading,
+        signInWithEmail,
+        signUpWithEmail,
+        signInWithGoogle,
+        signOut,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
