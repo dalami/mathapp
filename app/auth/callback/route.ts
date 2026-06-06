@@ -26,17 +26,10 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("stage")
-          .eq("id", user.id)
-          .single();
-        const destination = profile?.stage ? "/mapa" : "/etapa";
-        return NextResponse.redirect(`${origin}${destination}`);
-      }
-      return NextResponse.redirect(`${origin}/mapa`);
+      // Redirigir a /auth en lugar de /mapa directamente.
+      // /auth detecta la sesión lista y redirige al destino correcto
+      // evitando el race condition entre route.ts y AuthContext.
+      return NextResponse.redirect(`${origin}/auth`);
     }
   }
 

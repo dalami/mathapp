@@ -274,15 +274,11 @@ export default function MapaPage() {
   // (comparando user.id en el efecto, no en el cleanup).
   const loadedForRef = useRef<string | null>(null);
 
-  // Forzar reload si viene del callback OAuth — garantiza sesión fresca
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("refresh") === "1") {
-      window.history.replaceState({}, "", "/mapa");
-      window.location.reload();
-    }
-  }, []);
+// Resetear guard al montar — necesario cuando venimos de OAuth
+useEffect(() => {
+  loadedForRef.current = null;
+}, []);
+
 
   // ─── Efecto principal ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -328,10 +324,9 @@ export default function MapaPage() {
       setLocalCoins,
     });
 
-    // FIX 2: cleanup solo cancela el fetch en vuelo.
-    // NO reseteamos loadedForRef acá → sobrevive remounts de StrictMode.
     return () => {
       controller.abort();
+       loadedForRef.current = null;
     };
   }, [authLoading, user, profile, profileError, router]);
 
