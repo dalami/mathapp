@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email, password,
       options: {
         data: { full_name: displayName },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       },
     });
     return { error: error?.message ?? null };
