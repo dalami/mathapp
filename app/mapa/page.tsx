@@ -163,37 +163,30 @@ export default function MapaPage() {
   const loadedForRef = useRef<string | null>(null);
 
   useEffect(() => {
-    console.log("[mapa] effect", { authLoading, userId: user?.id, stage: profile?.stage, loadedFor: loadedForRef.current });
+    // Si tenemos user y profile, arrancar aunque authLoading sea true.
+    // Esto cubre el caso post-OAuth donde getSession() setea user antes
+    // de que setLoading(false) corra en el AuthContext.
+    const ready = !authLoading || (!!user && !!profile);
+    if (!ready) return;
 
-    // Todavía cargando auth — esperar
-    if (authLoading) return;
-
-    // Sin usuario — redirigir
+    // Sin usuario — esperar a que authLoading termine para redirigir
     if (!user) {
-      console.log("[mapa] sin user → /auth");
+      if (authLoading) return;
       router.replace("/auth");
       return;
     }
 
-    // Sin profile todavía — el efecto va a re-correr cuando llegue
-    if (!profile) {
-      console.log("[mapa] esperando profile...");
-      return;
-    }
+    // Sin profile todavía — esperar
+    if (!profile) return;
 
     // Sin stage o stage inválido — redirigir a selección de etapa
     if (!profile.stage || profile.stage < 1 || profile.stage > 4) {
-      console.log("[mapa] sin stage → /etapa");
       router.replace("/etapa");
       return;
     }
 
     // Ya cargamos para este usuario — no volver a cargar
-    if (loadedForRef.current === user.id) {
-      console.log("[mapa] ya cargado para", user.id);
-      return;
-    }
-    console.log("[mapa] arrancando fetchData para", user.id);
+    if (loadedForRef.current === user.id) return;
     loadedForRef.current = user.id;
 
     // Inicializar estado local desde profile (una sola vez, antes de que el RPC lo pise)
@@ -218,7 +211,6 @@ export default function MapaPage() {
   // profile está en deps para detectar cuando llegue, pero el guard loadedForRef
   // garantiza que loadMapData corre UNA SOLA VEZ por mount.
   }, [authLoading, user, profile, router]); 
-
   // Vidas se actualizan al volver del background (PWA)
   useEffect(() => {
     if (!user) return;
