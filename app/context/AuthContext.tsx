@@ -79,8 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchingForId = useRef<string | null>(null);
-  const initializedRef = useRef(false);
   const userRef = useRef<User | null>(null);
+  // Tracks whether onAuthStateChange already fired and called setLoading(false).
+  // init() solo llama setLoading(false) si onAuthStateChange todavía no lo hizo —
+  // así evitamos el window donde loading=false + user=null post-OAuth.
+  const authEventFiredRef = useRef(false);
 
   useEffect(() => {
     userRef.current = user;
@@ -112,10 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+
         if (session?.user) {
           setSession(session);
           setUser(session.user);
-          initializedRef.current = true;
           const uid = session.user.id;
           if (fetchingForId.current !== uid) {
             fetchingForId.current = uid;
@@ -125,13 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchingForId.current = null;
             }
           }
-        } else {
-          initializedRef.current = true;
         }
       } catch {
-        initializedRef.current = true;
+        // silencioso
       } finally {
-        setLoading(false);
+        // Solo liberamos loading si onAuthStateChange no lo hizo ya.
+        // Post-OAuth, onAuthStateChange dispara primero con la sesión nueva
+        // y setea loading=false. Si init() lo vuelve a setear acá con user=null
+        // (porque getSession() todavía no tenía la sesión), causaba el loop.
+        if (!authEventFiredRef.current) {
+          setLoading(false);
+        }
       }
     }
 
@@ -140,19 +147,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-       console.log("AUTH EVENT", event);
-      if (event === "INITIAL_SESSION") {
-        if (initializedRef.current) return;
-        initializedRef.current = true;
-      }
+      console.log("AUTH EVENT", event);
 
       if (session?.user) {
         const uid = session.user.id;
-        // Siempre setear session/user
         setSession(session);
         setUser(session.user);
 
-        // Fetchear profile solo si no hay otro fetch en curso para este uid
         if (fetchingForId.current !== uid) {
           fetchingForId.current = uid;
           try {
@@ -161,8 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchingForId.current = null;
           }
         } else {
-          // Hay un fetch en curso — esperar a que termine
-          // antes de liberar loading
+          // Fetch en curso para este uid — esperar a que termine
           await new Promise<void>((resolve) => {
             const interval = setInterval(() => {
               if (fetchingForId.current !== uid) {
@@ -179,6 +179,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileError(false);
       }
 
+      // Marcar que onAuthStateChange ya disparó antes de liberar loading
+      authEventFiredRef.current = true;
       setLoading(false);
     });
 
@@ -209,27 +211,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-const signInWithGoogle = async () => {
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-  
-  // En PWA standalone (display-mode: standalone) o TWA, access_type offline
-  // genera refresh tokens que Supabase no puede canjear bien desde el callback server-side.
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-      queryParams: {
-        prompt: "select_account",
-        // SIN access_type: "offline" en mobile/PWA — causa el "link expirado"
-        ...(isStandalone ? {} : { access_type: "offline" }),
+  const signInWithGoogle = async () => {
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          prompt: "select_account",
+          ...(isStandalone ? {} : { access_type: "offline" }),
+        },
+        skipBrowserRedirect: false,
       },
-      skipBrowserRedirect: false,
-    },
-  });
-  return { error: error?.message ?? null };
-};
+    });
+    return { error: error?.message ?? null };
+  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
