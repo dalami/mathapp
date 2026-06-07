@@ -140,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+       console.log("AUTH EVENT", event);
       if (event === "INITIAL_SESSION") {
         if (initializedRef.current) return;
         initializedRef.current = true;

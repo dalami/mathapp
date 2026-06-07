@@ -1,4 +1,4 @@
-const CACHE_NAME = "mathapp-v8";
+const CACHE_NAME = "mathapp-v9";
 
 const STATIC_ASSETS = ["/manifest.json"];
 
@@ -14,16 +14,13 @@ self.addEventListener("activate", (event) => {
     Promise.all([
       caches.keys().then((keys) =>
         Promise.all(
-          keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
         )
       ),
       self.clients.claim(),
-    ]).then(() => {
-      // Forzar reload en todas las tabs cuando el SW se actualiza
-      return self.clients.matchAll({ type: "window" }).then((clients) => {
-        clients.forEach((client) => client.navigate(client.url));
-      });
-    })
+    ])
   );
 });
 
