@@ -213,34 +213,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 const signInWithGoogle = async () => {
   const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-
-  if (isStandalone) {
-    // En PWA: flowType implicit — Google redirige con #access_token en el hash.
-    // Supabase lo detecta automáticamente via onAuthStateChange sin pasar por route.ts.
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-        queryParams: {
-          prompt: "select_account",
-        },
-      },
-    });
-    if (error || !data?.url) return { error: error?.message ?? "Error" };
-    window.location.href = data.url;
-    return { error: null };
-  }
-
-  // Browser normal: redirect flow estándar con PKCE
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
       queryParams: {
         prompt: "select_account",
-        access_type: "offline",
       },
     },
   });
