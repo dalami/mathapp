@@ -143,20 +143,7 @@ async function loadMapData(
 
   try {
     // restore_lives en background — no bloquea la carga del mapa
-    void (async () => {
-      try {
-        const { data } = await supabase.rpc("restore_lives", {
-          p_user_id: uid,
-        });
-        if (signal.aborted) return;
-        if (data?.lives != null) setLocalLives(data.lives);
-        if (data?.next_regen != null) setLocalLivesResetAt(data.next_regen);
-        // FIX 3: si el RPC devuelve coins, lo tomamos acá
-        if (data?.coins != null) setLocalCoins(data.coins);
-      } catch {
-        /* silencioso */
-      }
-    })();
+ 
 
     const [islandsRes, levelsRes, progressRes] = await Promise.all([
       supabase
@@ -326,7 +313,7 @@ useEffect(() => {
 
     return () => {
       controller.abort();
-       loadedForRef.current = null;
+       //loadedForRef.current = null;
     };
   }, [authLoading, user, profile, profileError, router]);
 
@@ -423,6 +410,13 @@ useEffect(() => {
       </div>
     );
   }
+console.log({
+  authLoading,
+  loading,
+  hasUser: !!user,
+  hasProfile: !!profile,
+  profileError,
+});
 
   if (authLoading || loading || !user || !profile) return <LoadingScreen />;
 
