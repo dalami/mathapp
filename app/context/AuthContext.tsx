@@ -211,22 +211,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-  const signInWithGoogle = async () => {
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    const { error } = await supabase.auth.signInWithOAuth({
+const signInWithGoogle = async () => {
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+
+  if (isStandalone) {
+    // En PWA: flowType implicit — Google redirige con #access_token en el hash.
+    // Supabase lo detecta automáticamente via onAuthStateChange sin pasar por route.ts.
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo,
+        skipBrowserRedirect: true,
         queryParams: {
           prompt: "select_account",
-          ...(isStandalone ? {} : { access_type: "offline" }),
         },
-        skipBrowserRedirect: false,
       },
     });
-    return { error: error?.message ?? null };
-  };
+    if (error || !data?.url) return { error: error?.message ?? "Error" };
+    window.location.href = data.url;
+    return { error: null };
+  }
+
+  // Browser normal: redirect flow estándar con PKCE
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      queryParams: {
+        prompt: "select_account",
+        access_type: "offline",
+      },
+    },
+  });
+  return { error: error?.message ?? null };
+};
 
   const signOut = async () => {
     await supabase.auth.signOut();
