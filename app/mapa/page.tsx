@@ -110,7 +110,6 @@ const STARS_BG = Array.from({ length: 30 }).map(() => ({
   size: `${2 + Math.random() * 3}px`,
 }));
 
-// ─── Callbacks de loadMapData ─────────────────────────────────────────────────
 interface LoadMapCallbacks {
   setLoading: (v: boolean) => void;
   setLoadError: (v: boolean) => void;
@@ -118,10 +117,9 @@ interface LoadMapCallbacks {
   setLevels: (v: Level[]) => void;
   setLocalLives: (v: number) => void;
   setLocalLivesResetAt: (v: string | null) => void;
-  setLocalCoins: (v: number) => void; // FIX 3: coins sincronizados
+  setLocalCoins: (v: number) => void;
 }
 
-// ─── Lógica de carga fuera del componente ────────────────────────────────────
 async function loadMapData(
   uid: string,
   stage: number,
@@ -142,7 +140,6 @@ async function loadMapData(
   setLoadError(false);
 
   try {
-    // restore_lives en background — no bloquea la carga del mapa
     void (async () => {
       try {
         const { data } = await supabase.rpc("restore_lives", {
@@ -151,7 +148,6 @@ async function loadMapData(
         if (signal.aborted) return;
         if (data?.lives != null) setLocalLives(data.lives);
         if (data?.next_regen != null) setLocalLivesResetAt(data.next_regen);
-        // FIX 3: si el RPC devuelve coins, lo tomamos acá
         if (data?.coins != null) setLocalCoins(data.coins);
       } catch {
         /* silencioso */
@@ -214,8 +210,6 @@ async function loadMapData(
     setIslands((islandsRes.data ?? []) as Island[]);
     setLevels(processed);
 
-    // FIX 3: si el RPC no devuelve coins, re-leemos desde profiles
-    // Esto garantiza que el contador siempre está fresco al cargar el mapa.
     void (async () => {
       try {
         const { data } = await supabase
@@ -237,12 +231,9 @@ async function loadMapData(
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function MapaPage() {
   const router = useRouter();
 
-  // FIX 1: desestructuramos profileError para detectar fallo definitivo de profile
   const {
     profile,
     user,
@@ -267,52 +258,37 @@ export default function MapaPage() {
 
   const topRef = useRef<HTMLDivElement>(null);
 
-  // FIX 2: el guard vive FUERA del ciclo de cleanup.
-  // Antes: loadedForRef.current = null en el return del useEffect
-  // → React StrictMode desmontaba/remontaba y reseteaba el guard → doble fetch.
-  // Solución: el guard solo se resetea cuando el usuario efectivamente cambia
-  // (comparando user.id en el efecto, no en el cleanup).
+  // Guard: almacena el user.id para el que ya cargamos el mapa.
+  // Se resetea solo cuando el usuario cambia (distinto id), nunca en cleanup.
+  // IMPORTANTE: NO hay useEffect que resetee esto al montar — eso causaba
+  // el cuelgue post-OAuth porque el guard se limpiaba después de que el
+  // efecto principal ya había corrido.
   const loadedForRef = useRef<string | null>(null);
-
-// Resetear guard al montar — necesario cuando venimos de OAuth
-useEffect(() => {
-  loadedForRef.current = null;
-}, []);
-
 
   // ─── Efecto principal ───────────────────────────────────────────────────────
   useEffect(() => {
-    // Esperar siempre a que authLoading sea false
     if (authLoading) return;
 
-    // Sin usuario → auth
     if (!user) {
       router.replace("/auth");
       return;
     }
 
-    // FIX 1: si profile falló definitivamente, no hacemos nada acá.
-    // El render lo detecta vía `profileError` directamente (sin setState en el efecto).
     if (!profile) return;
 
-    // Sin stage o stage inválido → etapa
     if (!profile.stage || profile.stage < 1 || profile.stage > 4) {
       router.replace("/etapa");
       return;
     }
 
-    // FIX 2: el guard compara user.id actual con el que ya cargamos.
-    // Si son distintos (cambio de cuenta), reseteamos y recargamos.
-    // Si son iguales, no hacemos nada (ya cargado).
+    // Si ya cargamos para este user, no volvemos a cargar
     if (loadedForRef.current === user.id) return;
     loadedForRef.current = user.id;
 
-    // Inicializar estado local desde profile (antes de que el RPC lo pise)
     setLocalLives(profile.lives ?? 5);
     setLocalCoins(profile.coins ?? 0);
     setLocalLivesResetAt(profile.lives_reset_at ?? null);
 
-    // Cargar el mapa
     const controller = new AbortController();
     loadMapData(user.id, profile.stage, controller.signal, {
       setLoading,
@@ -326,7 +302,7 @@ useEffect(() => {
 
     return () => {
       controller.abort();
-       //loadedForRef.current = null;
+      loadedForRef.current = null;
     };
   }, [authLoading, user, profile, profileError, router]);
 
@@ -342,7 +318,7 @@ useEffect(() => {
           });
           if (data?.lives != null) setLocalLives(data.lives);
           if (data?.next_regen != null) setLocalLivesResetAt(data.next_regen);
-          if (data?.coins != null) setLocalCoins(data.coins); // FIX 3
+          if (data?.coins != null) setLocalCoins(data.coins);
         } catch {
           /* silencioso */
         }
@@ -372,7 +348,6 @@ useEffect(() => {
 
   function handleRetry() {
     if (!user || !profile?.stage) return;
-    // En retry sí reseteamos el guard explícitamente — el usuario lo pidió
     loadedForRef.current = null;
     setLoadError(false);
     const controller = new AbortController();
@@ -387,8 +362,6 @@ useEffect(() => {
     });
   }
 
-  // FIX 1: profileError se lee directo en render — sin setState dentro del efecto.
-  // Si auth terminó, hay user pero profile no llegó (error de red/RLS/timeout) → error.
   if (!authLoading && user && profileError && !profile) {
     return (
       <div className="min-h-dvh bg-[#0a0a0f] flex flex-col items-center justify-center gap-5 font-[Nunito,sans-serif] px-6 text-center">
@@ -406,7 +379,6 @@ useEffect(() => {
     );
   }
 
-  // ─── Estados de pantalla completa ──────────────────────────────────────────
   if (loadError) {
     return (
       <div className="min-h-dvh bg-[#0a0a0f] flex flex-col items-center justify-center gap-5 font-[Nunito,sans-serif] px-6 text-center">
@@ -423,17 +395,9 @@ useEffect(() => {
       </div>
     );
   }
-console.log({
-  authLoading,
-  loading,
-  hasUser: !!user,
-  hasProfile: !!profile,
-  profileError,
-});
 
   if (authLoading || loading || !user || !profile) return <LoadingScreen />;
 
-  // ─── Datos derivados ────────────────────────────────────────────────────────
   const levelsByIsland = islands.map((island) =>
     levels
       .filter((l) => l.island_id === island.id)
@@ -444,7 +408,6 @@ console.log({
   const avatarEmoji = AVATARS[(profile?.avatar_id ?? 1) - 1] ?? "🦖";
   const totalLevels = islands.length * 10;
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <div
