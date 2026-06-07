@@ -26,9 +26,6 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Redirigir a /auth en lugar de /mapa directamente.
-      // /auth detecta la sesión lista y redirige al destino correcto
-      // evitando el race condition entre route.ts y AuthContext.
       return NextResponse.redirect(`${origin}/auth`);
     }
   }

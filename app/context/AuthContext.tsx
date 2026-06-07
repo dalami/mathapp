@@ -209,21 +209,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-  const signInWithGoogle = async () => {
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          prompt: "select_account",
-          access_type: "offline",
-        },
-        skipBrowserRedirect: false,
+const signInWithGoogle = async () => {
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+  
+  // En PWA standalone (display-mode: standalone) o TWA, access_type offline
+  // genera refresh tokens que Supabase no puede canjear bien desde el callback server-side.
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      queryParams: {
+        prompt: "select_account",
+        // SIN access_type: "offline" en mobile/PWA — causa el "link expirado"
+        ...(isStandalone ? {} : { access_type: "offline" }),
       },
-    });
-    return { error: error?.message ?? null };
-  };
+      skipBrowserRedirect: false,
+    },
+  });
+  return { error: error?.message ?? null };
+};
 
   const signOut = async () => {
     await supabase.auth.signOut();
