@@ -270,8 +270,9 @@ export default function MapaPage() {
     if (authLoading) return;
 
     if (!user) {
-      router.replace("/auth");
-      return;
+      // Pequeño delay para evitar redirect prematuro post-OAuth
+      const t = setTimeout(() => router.replace("/auth"), 300);
+      return () => clearTimeout(t);
     }
 
     if (!profile) return;
