@@ -71,7 +71,7 @@ function AuthForm() {
 
   useEffect(() => {
     if (!loading && user) {
-      const t = setTimeout(() => router.replace("/mapa"), 0);
+      const t = setTimeout(() => router.replace("/etapa"), 0);
       return () => clearTimeout(t);
     }
   }, [user, loading, router]);
@@ -108,7 +108,7 @@ function AuthForm() {
       if (error) {
         setError(translateError(error));
       } else {
-        router.replace("/mapa");
+        router.replace("/etapa");
       }
     } else {
       if (displayName.trim().length < 2) {
