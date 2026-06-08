@@ -257,7 +257,7 @@ export default function MapaPage() {
   );
 
   const topRef = useRef<HTMLDivElement>(null);
-  const [mountedAt] = useState(() => new Date().toLocaleTimeString());
+  const [mountedAt] = useState(() => "OK");
 
   // Guard: almacena el user.id para el que ya cargamos el mapa.
   // Se resetea solo cuando el usuario cambia (distinto id), nunca en cleanup.
@@ -754,11 +754,7 @@ function LoadingScreen({ mountedAt }: { mountedAt?: string }) {
         🧮
       </div>
       <div className="text-white/35 text-sm font-bold">Cargando mapa...</div>
-      {mountedAt && (
-        <div className="text-white/20 text-[10px] font-mono mt-2">
-          montó: {mountedAt}
-        </div>
-      )}
+      {mountedAt && <span style={{ display: "none" }}>{mountedAt}</span>}
     </div>
   );
 }
