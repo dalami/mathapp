@@ -258,12 +258,6 @@ export default function MapaPage() {
 
   const topRef = useRef<HTMLDivElement>(null);
 
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-
-  const log = (msg: string) => {
-  setDebugLogs(prev => [...prev.slice(-8), `${new Date().toLocaleTimeString()}: ${msg}`]);
-};
-
   // Guard: almacena el user.id para el que ya cargamos el mapa.
   // Se resetea solo cuando el usuario cambia (distinto id), nunca en cleanup.
   // IMPORTANTE: NO hay useEffect que resetee esto al montar — eso causaba
@@ -273,7 +267,6 @@ export default function MapaPage() {
 
   // ─── Efecto principal ───────────────────────────────────────────────────────
   useEffect(() => {
-    log(`efecto: authLoading=${authLoading} user=${!!user} profile=${!!profile} loadedFor=${loadedForRef.current}`);
     if (authLoading) return;
 
     if (!user) {
@@ -282,7 +275,7 @@ export default function MapaPage() {
       return () => clearTimeout(t);
     }
 
-    if (!profile) { log("sin profile, saliendo"); return; }
+    if (!profile) return;
 
     if (!profile.stage || profile.stage < 1 || profile.stage > 4) {
       router.replace("/etapa");
@@ -290,8 +283,7 @@ export default function MapaPage() {
     }
 
     // Si ya cargamos para este user, no volvemos a cargar
-   if (loadedForRef.current === user.id) { log("guard activo, saliendo"); return; }
-     log("lanzando loadMapData");
+    if (loadedForRef.current === user.id) return;
     loadedForRef.current = user.id;
 
     setLocalLives(profile.lives ?? 5);
