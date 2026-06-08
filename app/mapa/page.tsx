@@ -257,6 +257,7 @@ export default function MapaPage() {
   );
 
   const topRef = useRef<HTMLDivElement>(null);
+  const [mountedAt] = useState(() => new Date().toLocaleTimeString());
 
   // Guard: almacena el user.id para el que ya cargamos el mapa.
   // Se resetea solo cuando el usuario cambia (distinto id), nunca en cleanup.
@@ -397,7 +398,7 @@ export default function MapaPage() {
     );
   }
 
-  if (authLoading || loading || !user || !profile) return <LoadingScreen />;
+  if (authLoading || loading || !user || !profile) return <LoadingScreen mountedAt={mountedAt} />;
 
   const levelsByIsland = islands.map((island) =>
     levels
@@ -746,13 +747,18 @@ export default function MapaPage() {
   );
 }
 
-function LoadingScreen() {
+function LoadingScreen({ mountedAt }: { mountedAt?: string }) {
   return (
     <div className="min-h-dvh bg-[#0a0a0f] flex flex-col items-center justify-center gap-3.5 font-[Nunito,sans-serif]">
       <div className="text-5xl animate-[bounceLoad_0.75s_ease-in-out_infinite_alternate]">
         🧮
       </div>
       <div className="text-white/35 text-sm font-bold">Cargando mapa...</div>
+      {mountedAt && (
+        <div className="text-white/20 text-[10px] font-mono mt-2">
+          montó: {mountedAt}
+        </div>
+      )}
     </div>
   );
 }
