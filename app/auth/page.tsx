@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 // ─── Íconos SVG inline ───────────────────────────────────────
 const IconGoogle = () => (
@@ -120,6 +121,7 @@ function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Redirigir al mapa cuando el usuario ya está autenticado
   useEffect(() => {
     if (!loading && user) {
       const t = setTimeout(() => router.replace("/mapa"), 0);
@@ -127,6 +129,7 @@ function AuthForm() {
     }
   }, [user, loading, router]);
 
+  // Manejar errores de callback OAuth
   useEffect(() => {
     if (searchParams.get("error") === "callback_failed") {
       const t = setTimeout(() => {
@@ -135,6 +138,26 @@ function AuthForm() {
       return () => clearTimeout(t);
     }
   }, [searchParams]);
+
+  // Fallback client-side: cuando el exchange server-side falló (PWA/TWA),
+  // route.ts redirige a /auth?code=XXX. Lo intercambiamos acá en el cliente.
+  // onAuthStateChange en AuthContext detecta la sesión nueva automáticamente.
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (!code) return;
+
+    // Limpiar el ?code= de la URL para que no quede visible ni se reprocese
+    window.history.replaceState({}, "", "/auth");
+
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (error) {
+        setError("El link expiró o no es válido. Intentá de nuevo.");
+      }
+      // Si exchange exitoso: onAuthStateChange en AuthContext dispara solo,
+      // fetchProfile corre, y el useEffect de arriba redirige a /mapa.
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo al montar — el code no cambia durante la vida del componente
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
