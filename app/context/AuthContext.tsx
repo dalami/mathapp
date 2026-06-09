@@ -32,15 +32,8 @@ interface AuthContextType {
   profile: Profile | null;
   profileError: boolean;
   loading: boolean;
-  signInWithEmail: (
-    email: string,
-    password: string,
-  ) => Promise<{ error: string | null }>;
-  signUpWithEmail: (
-    email: string,
-    password: string,
-    displayName: string,
-  ) => Promise<{ error: string | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -50,9 +43,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_TIMEOUT_MS = 8_000;
 
-async function fetchProfileWithTimeout(
-  userId: string,
-): Promise<Profile | null> {
+async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
   try {
@@ -80,9 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchingForId = useRef<string | null>(null);
   const userRef = useRef<User | null>(null);
-  // Tracks whether onAuthStateChange already fired and called setLoading(false).
-  // init() solo llama setLoading(false) si onAuthStateChange todavía no lo hizo —
-  // así evitamos el window donde loading=false + user=null post-OAuth.
   const authEventFiredRef = useRef(false);
 
   useEffect(() => {
@@ -112,9 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function init() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user) {
           setSession(session);
@@ -132,10 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // silencioso
       } finally {
-        // Solo liberamos loading si onAuthStateChange no lo hizo ya.
-        // Post-OAuth, onAuthStateChange dispara primero con la sesión nueva
-        // y setea loading=false. Si init() lo vuelve a setear acá con user=null
-        // (porque getSession() todavía no tenía la sesión), causaba el loop.
         if (!authEventFiredRef.current) {
           setLoading(false);
         }
@@ -144,24 +126,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AUTH EVENT", event);
+
+      // TOKEN_REFRESHED: solo actualizar la sesión, no refetchear el profile
+      // El perfil no cambió — refetchearlo causa re-renders innecesarios
+      // que hacen que el mapa se recargue al volver de otra pestaña
+      if (event === "TOKEN_REFRESHED") {
+        if (session) setSession(session);
+        authEventFiredRef.current = true;
+        setLoading(false);
+        return;
+      }
 
       if (session?.user) {
         const uid = session.user.id;
         setSession(session);
         setUser(session.user);
 
-        if (fetchingForId.current !== uid) {
+        // Si ya tenemos el profile para este usuario cargado, no refetchear
+        // Evita recargas innecesarias en SIGNED_IN por visibilidad de pestaña
+        const alreadyLoaded = userRef.current?.id === uid && !profileError;
+
+        if (!alreadyLoaded && fetchingForId.current !== uid) {
           fetchingForId.current = uid;
           try {
             await fetchProfile(uid);
           } finally {
             fetchingForId.current = null;
           }
-        } else {
+        } else if (fetchingForId.current === uid) {
           // Fetch en curso para este uid — esperar a que termine
           await new Promise<void>((resolve) => {
             const interval = setInterval(() => {
@@ -179,27 +173,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileError(false);
       }
 
-      // Marcar que onAuthStateChange ya disparó antes de liberar loading
       authEventFiredRef.current = true;
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [fetchProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   };
 
-  const signUpWithEmail = async (
-    email: string,
-    password: string,
-    displayName: string,
-  ) => {
+  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -211,19 +197,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-const signInWithGoogle = async () => {
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-      queryParams: {
-        prompt: "select_account",
+  const signInWithGoogle = async () => {
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: { prompt: "select_account" },
       },
-    },
-  });
-  return { error: error?.message ?? null };
-};
+    });
+    return { error: error?.message ?? null };
+  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
