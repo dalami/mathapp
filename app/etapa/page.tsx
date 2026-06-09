@@ -16,6 +16,7 @@ const ETAPAS = [
     border: "#2e7d32",
     bg: "#0d2b0d",
     disponible: true,
+    mapa: "/mapa",
   },
   {
     stage: 2,
@@ -26,7 +27,8 @@ const ETAPAS = [
     color: "#29B6F6",
     border: "#0277bd",
     bg: "#0a1f2e",
-    disponible: false,
+    disponible: true,
+    mapa: "/mapa2",
   },
   {
     stage: 3,
@@ -38,6 +40,7 @@ const ETAPAS = [
     border: "#e65100",
     bg: "#2b1e0a",
     disponible: false,
+    mapa: "/mapa",
   },
   {
     stage: 4,
@@ -49,6 +52,7 @@ const ETAPAS = [
     border: "#6a1b9a",
     bg: "#1e0a2b",
     disponible: false,
+    mapa: "/mapa",
   },
 ];
 
@@ -58,7 +62,7 @@ export default function EtapaPage() {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
 
-  async function handleSelect(stage: number) {
+  async function handleSelect(stage: number, mapa: string) {
     if (!user || saving) return;
     setSelected(stage);
     setSaving(true);
@@ -69,7 +73,7 @@ export default function EtapaPage() {
       .eq("id", user.id);
 
     await refreshProfile();
-    router.replace("/mapa");
+    router.replace(mapa);
   }
 
   return (
@@ -93,7 +97,7 @@ export default function EtapaPage() {
                 borderColor: e.disponible ? `${e.color}55` : "rgba(255,255,255,0.06)",
               }}
               disabled={!e.disponible || saving}
-              onClick={() => handleSelect(e.stage)}
+              onClick={() => handleSelect(e.stage, e.mapa)}
             >
               {!e.disponible && <div className="card-lock">🔒 Próximamente</div>}
 

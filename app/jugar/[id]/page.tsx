@@ -59,6 +59,11 @@ function calcStars(totalErrors: number, totalQuestions: number): number {
   return 0;
 }
 
+function getMapRoute(stage: number | null | undefined): string {
+  if (stage === 2) return "/mapa2";
+  return "/mapa";
+}
+
 export default function JugarPage() {
   const router = useRouter();
   const params = useParams();
@@ -148,7 +153,7 @@ export default function JugarPage() {
 
       // Si profile nunca llegó, volver al mapa en lugar de congelarse
       if (!currentProfile) {
-        window.location.href = "/mapa";
+        window.location.href = getMapRoute(profileRef.current?.stage);
         return;
       }
 
@@ -183,7 +188,7 @@ export default function JugarPage() {
 
         if (lvlErr || !lvl) {
           console.error("Error cargando nivel:", lvlErr);
-          router.replace("/mapa");
+          router.replace(getMapRoute(currentProfile?.stage));
           return;
         }
 
@@ -200,7 +205,7 @@ export default function JugarPage() {
             "cantidad:",
             qs?.length,
           );
-          router.replace("/mapa");
+          router.replace(getMapRoute(currentProfile?.stage));
           return;
         }
 
@@ -243,7 +248,7 @@ export default function JugarPage() {
         setPhase("playing");
       } catch (e) {
         console.error("Error inesperado en fetchLevel:", e);
-        router.replace("/mapa");
+        router.replace(getMapRoute(currentProfile?.stage));
       }
     }
 
@@ -312,7 +317,7 @@ export default function JugarPage() {
           if (dest) {
             router.push(`/jugar/${dest}`);
           } else {
-            router.push(`/mapa`);
+           router.push(getMapRoute(profileRef.current?.stage));
           }
         }, 3500);
       }
@@ -445,7 +450,7 @@ export default function JugarPage() {
       }
     }
 
-    router.replace("/mapa");
+    router.replace(getMapRoute(profileRef.current?.stage));
   }, [router, user]);
 
   // ─── RENDERS ──────────────────────────────────────────────────
@@ -456,7 +461,7 @@ export default function JugarPage() {
         coins={coins}
         livesResetAt={livesResetAt}
         onClose={() => {
-          router.replace("/mapa");
+         router.replace(getMapRoute(profileRef.current?.stage));
         }}
         onLivesRestored={(newLives, newCoins) => {
           setLives(newLives);

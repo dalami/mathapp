@@ -43,9 +43,36 @@ function Particles() {
           style={{
             left: ["5%", "20%", "40%", "60%", "75%", "85%", "10%", "55%"][i],
             top: ["10%", "70%", "15%", "80%", "25%", "60%", "50%", "45%"][i],
-            animationDuration: ["14s","18s","12s","16s","20s","15s","22s","11s"][i],
-            animationDelay: ["0s","-3s","-7s","-2s","-5s","-1s","-9s","-4s"][i],
-            fontSize: ["2rem","1.2rem","1.5rem","1.8rem","1.5rem","2.2rem","1rem","1.6rem"][i],
+            animationDuration: [
+              "14s",
+              "18s",
+              "12s",
+              "16s",
+              "20s",
+              "15s",
+              "22s",
+              "11s",
+            ][i],
+            animationDelay: [
+              "0s",
+              "-3s",
+              "-7s",
+              "-2s",
+              "-5s",
+              "-1s",
+              "-9s",
+              "-4s",
+            ][i],
+            fontSize: [
+              "2rem",
+              "1.2rem",
+              "1.5rem",
+              "1.8rem",
+              "1.5rem",
+              "2.2rem",
+              "1rem",
+              "1.6rem",
+            ][i],
           }}
         >
           {p}
@@ -116,7 +143,11 @@ function AuthForm() {
         setSubmitting(false);
         return;
       }
-      const { error } = await signUpWithEmail(email, password, displayName.trim());
+      const { error } = await signUpWithEmail(
+        email,
+        password,
+        displayName.trim(),
+      );
       if (error) {
         setError(translateError(error));
       } else {
@@ -140,7 +171,9 @@ function AuthForm() {
           MathApp
         </h1>
         <p className="text-[0.95rem] text-white/55 mt-1">
-          {mode === "login" ? "¡Bienvenido de vuelta!" : "¡Creá tu cuenta gratis!"}
+          {mode === "login"
+            ? "¡Bienvenido de vuelta!"
+            : "¡Creá tu cuenta gratis!"}
         </p>
       </div>
 
@@ -153,7 +186,11 @@ function AuthForm() {
               ? "bg-[#FFD700] text-[#1a1a4e] shadow-[0_4px_12px_rgba(255,215,0,0.35)]"
               : "bg-transparent text-white/50"
           }`}
-          onClick={() => { setMode("login"); setError(null); setSuccessMsg(null); }}
+          onClick={() => {
+            setMode("login");
+            setError(null);
+            setSuccessMsg(null);
+          }}
         >
           Iniciar sesión
         </button>
@@ -164,7 +201,11 @@ function AuthForm() {
               ? "bg-[#FFD700] text-[#1a1a4e] shadow-[0_4px_12px_rgba(255,215,0,0.35)]"
               : "bg-transparent text-white/50"
           }`}
-          onClick={() => { setMode("register"); setError(null); setSuccessMsg(null); }}
+          onClick={() => {
+            setMode("register");
+            setError(null);
+            setSuccessMsg(null);
+          }}
         >
           Registrarse
         </button>
@@ -174,7 +215,10 @@ function AuthForm() {
       <form onSubmit={handleSubmit} noValidate>
         {mode === "register" && (
           <div className="mb-3.5">
-            <label htmlFor="name" className="block text-[0.85rem] font-bold text-white/70 mb-1.5">
+            <label
+              htmlFor="name"
+              className="block text-[0.85rem] font-bold text-white/70 mb-1.5"
+            >
               ¿Cómo te llamás?
             </label>
             <input
@@ -191,7 +235,10 @@ function AuthForm() {
         )}
 
         <div className="mb-3.5">
-          <label htmlFor="email" className="block text-[0.85rem] font-bold text-white/70 mb-1.5">
+          <label
+            htmlFor="email"
+            className="block text-[0.85rem] font-bold text-white/70 mb-1.5"
+          >
             Email
           </label>
           <input
@@ -207,10 +254,16 @@ function AuthForm() {
         </div>
 
         <div className="mb-3.5">
-          <label htmlFor="password" className="block text-[0.85rem] font-bold text-white/70 mb-1.5">
+          <label
+            htmlFor="password"
+            className="block text-[0.85rem] font-bold text-white/70 mb-1.5"
+          >
             Contraseña
             {mode === "register" && (
-              <span className="font-normal opacity-70"> (mínimo 6 caracteres)</span>
+              <span className="font-normal opacity-70">
+                {" "}
+                (mínimo 6 caracteres)
+              </span>
             )}
           </label>
           <div className="relative">
@@ -222,14 +275,18 @@ function AuthForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              autoComplete={
+                mode === "login" ? "current-password" : "new-password"
+              }
               className="w-full px-4 py-3.5 bg-white/8 border border-white/12 rounded-xl text-white text-[0.95rem] font-[inherit] outline-none transition-all duration-200 placeholder:text-white/30 focus:border-[#FFD700] focus:bg-white/12"
             />
             <button
               type="button"
               className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-none border-none text-white/40 cursor-pointer flex items-center transition-colors duration-200 p-0 hover:text-white/80"
               onClick={() => setShowPass((v) => !v)}
-              aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={
+                showPass ? "Ocultar contraseña" : "Mostrar contraseña"
+              }
             >
               <IconEye show={showPass} />
             </button>
@@ -264,6 +321,15 @@ function AuthForm() {
               ? "Entrar al juego 🚀"
               : "Crear cuenta 🎉"}
         </button>
+        {mode === "login" && (
+          <button
+            type="button"
+            className="w-full py-2 mt-2 bg-transparent border-none text-white/40 text-[0.83rem] font-bold cursor-pointer hover:text-white/70 transition-colors"
+            onClick={() => router.push("/forgot-password")}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+        )}
       </form>
     </div>
   );
@@ -281,11 +347,16 @@ export default function AuthPage() {
 }
 
 function translateError(msg: string): string {
-  if (msg.includes("Invalid login credentials")) return "Email o contraseña incorrectos.";
-  if (msg.includes("Email not confirmed")) return "Confirmá tu email antes de ingresar.";
-  if (msg.includes("User already registered")) return "Ya existe una cuenta con ese email.";
-  if (msg.includes("Password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
+  if (msg.includes("Invalid login credentials"))
+    return "Email o contraseña incorrectos.";
+  if (msg.includes("Email not confirmed"))
+    return "Confirmá tu email antes de ingresar.";
+  if (msg.includes("User already registered"))
+    return "Ya existe una cuenta con ese email.";
+  if (msg.includes("Password should be at least"))
+    return "La contraseña debe tener al menos 6 caracteres.";
   if (msg.includes("Unable to validate email")) return "El email no es válido.";
-  if (msg.includes("rate limit")) return "Demasiados intentos. Esperá unos minutos.";
+  if (msg.includes("rate limit"))
+    return "Demasiados intentos. Esperá unos minutos.";
   return msg;
 }

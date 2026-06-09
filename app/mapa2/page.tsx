@@ -46,52 +46,66 @@ const ISLAND_THEMES: Record<
   }
 > = {
   1: {
-    bg: "#0d2b0d",
-    node: "#4CAF50",
-    nodeBorder: "#2e7d32",
-    shadow: "#4CAF5055",
-    label: "#c8e6c9",
+    bg: "#1a0a2e",
+    node: "#9C27B0",
+    nodeBorder: "#6a1b9a",
+    shadow: "#9C27B055",
+    label: "#e1bee7",
   },
   2: {
-    bg: "#0a1f2e",
-    node: "#29B6F6",
-    nodeBorder: "#0277bd",
-    shadow: "#29B6F655",
-    label: "#b3e5fc",
+    bg: "#0a2e1a",
+    node: "#00BFA5",
+    nodeBorder: "#00695c",
+    shadow: "#00BFA555",
+    label: "#b2dfdb",
   },
   3: {
-    bg: "#2b1e0a",
-    node: "#FFA726",
-    nodeBorder: "#e65100",
-    shadow: "#FFA72655",
-    label: "#ffe0b2",
+    bg: "#2e1a0a",
+    node: "#FF7043",
+    nodeBorder: "#bf360c",
+    shadow: "#FF704355",
+    label: "#ffccbc",
   },
   4: {
-    bg: "#2b0a0a",
-    node: "#EF5350",
-    nodeBorder: "#b71c1c",
-    shadow: "#EF535055",
-    label: "#ffcdd2",
-  },
-  5: {
-    bg: "#1e0a2b",
-    node: "#CE93D8",
-    nodeBorder: "#6a1b9a",
-    shadow: "#CE93D855",
-    label: "#f3e5f5",
-  },
-  6: {
-    bg: "#0a142b",
-    node: "#42A5F5",
+    bg: "#0a1a2e",
+    node: "#1E88E5",
     nodeBorder: "#0d47a1",
-    shadow: "#42A5F555",
+    shadow: "#1E88E555",
     label: "#bbdefb",
   },
+  5: {
+    bg: "#2e2a0a",
+    node: "#FDD835",
+    nodeBorder: "#f57f17",
+    shadow: "#FDD83555",
+    label: "#fff9c4",
+  },
+  6: {
+    bg: "#0a2e2e",
+    node: "#26C6DA",
+    nodeBorder: "#00838f",
+    shadow: "#26C6DA55",
+    label: "#b2ebf2",
+  },
   7: {
-    bg: "#181818",
-    node: "#78909C",
+    bg: "#2e0a1a",
+    node: "#EC407A",
+    nodeBorder: "#880e4f",
+    shadow: "#EC407A55",
+    label: "#fce4ec",
+  },
+  8: {
+    bg: "#1a2e0a",
+    node: "#8BC34A",
+    nodeBorder: "#33691e",
+    shadow: "#8BC34A55",
+    label: "#dcedc8",
+  },
+  9: {
+    bg: "#1a1a1a",
+    node: "#90A4AE",
     nodeBorder: "#37474f",
-    shadow: "#78909C55",
+    shadow: "#90A4AE55",
     label: "#eceff1",
   },
 };
@@ -237,7 +251,7 @@ async function loadMapData(
   }
 }
 
-export default function MapaPage() {
+export default function Mapa2Page() {
   const router = useRouter();
   const {
     profile,
@@ -280,7 +294,7 @@ export default function MapaPage() {
     setLocalLivesResetAt,
     setLocalCoins,
   });
-  useEffect(() => {    // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { // eslint-disable-line react-hooks/exhaustive-deps
     callbacksRef.current = {
       setLoading,
       setLoadError,
@@ -327,7 +341,7 @@ export default function MapaPage() {
       controller.abort();
       //loadedForRef.current = null;
     };
-  }, [authLoading, user, profile, profileError, router]); 
+  }, [authLoading, user, profile, profileError, router]);
 
   // ─── Visibilidad: recarga silenciosa SIN tocar loadedForRef ───
   useEffect(() => {
@@ -354,7 +368,8 @@ export default function MapaPage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [user]); 
+  }, [user]);
+
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
   }, [loading]);
@@ -429,7 +444,7 @@ export default function MapaPage() {
   const totalStars = levels.reduce((s, l) => s + l.stars, 0);
   const completedCount = levels.filter((l) => l.status === "completed").length;
   const avatarEmoji = AVATARS[(profile?.avatar_id ?? 1) - 1] ?? "🦖";
-  const totalLevels = islands.length * 10;
+  const totalLevels = islands.length * 15;
 
   return (
     <>
