@@ -67,12 +67,10 @@ export default function EtapaPage() {
     setSelected(stage);
     setSaving(true);
 
-    await supabase
-      .from("profiles")
-      .update({ stage })
-      .eq("id", user.id);
+    await supabase.from("profiles").update({ stage }).eq("id", user.id);
 
-    await refreshProfile();
+    // No esperamos refreshProfile — el mapa carga el profile actualizado
+    refreshProfile().catch(() => {});
     router.replace(mapa);
   }
 
@@ -80,52 +78,85 @@ export default function EtapaPage() {
     <>
       <style>{CSS}</style>
       <div className="etapa-root">
-
         <div className="etapa-header">
           <div className="etapa-logo">🧮</div>
           <h1 className="etapa-title">¿Cuál es tu nivel?</h1>
-          <p className="etapa-sub">Elegí tu etapa para empezar. Podés cambiarla cuando quieras.</p>
+          <p className="etapa-sub">
+            Elegí tu etapa para empezar. Podés cambiarla cuando quieras.
+          </p>
         </div>
 
         <div className="etapa-grid">
-          {ETAPAS.map(e => (
+          {ETAPAS.map((e) => (
             <button
               key={e.stage}
               className={`etapa-card ${!e.disponible ? "locked" : ""} ${selected === e.stage ? "selecting" : ""}`}
               style={{
                 background: e.bg,
-                borderColor: e.disponible ? `${e.color}55` : "rgba(255,255,255,0.06)",
+                borderColor: e.disponible
+                  ? `${e.color}55`
+                  : "rgba(255,255,255,0.06)",
               }}
               disabled={!e.disponible || saving}
               onClick={() => handleSelect(e.stage, e.mapa)}
             >
-              {!e.disponible && <div className="card-lock">🔒 Próximamente</div>}
+              {!e.disponible && (
+                <div className="card-lock">🔒 Próximamente</div>
+              )}
 
-              <div className="card-emoji" style={{ filter: e.disponible ? `drop-shadow(0 0 12px ${e.color}88)` : "grayscale(1) opacity(0.4)" }}>
+              <div
+                className="card-emoji"
+                style={{
+                  filter: e.disponible
+                    ? `drop-shadow(0 0 12px ${e.color}88)`
+                    : "grayscale(1) opacity(0.4)",
+                }}
+              >
                 {e.emoji}
               </div>
 
-              <div className="card-nombre" style={{ color: e.disponible ? e.color : "rgba(255,255,255,0.3)" }}>
+              <div
+                className="card-nombre"
+                style={{
+                  color: e.disponible ? e.color : "rgba(255,255,255,0.3)",
+                }}
+              >
                 {e.nombre}
               </div>
 
-              <div className="card-edad" style={{ color: e.disponible ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)" }}>
+              <div
+                className="card-edad"
+                style={{
+                  color: e.disponible
+                    ? "rgba(255,255,255,0.6)"
+                    : "rgba(255,255,255,0.2)",
+                }}
+              >
                 {e.edad}
               </div>
 
-              <div className="card-desc" style={{ color: e.disponible ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.15)" }}>
+              <div
+                className="card-desc"
+                style={{
+                  color: e.disponible
+                    ? "rgba(255,255,255,0.45)"
+                    : "rgba(255,255,255,0.15)",
+                }}
+              >
                 {e.descripcion}
               </div>
 
               {e.disponible && (
-                <div className="card-cta" style={{ background: e.color, color: "#0a0a0f" }}>
+                <div
+                  className="card-cta"
+                  style={{ background: e.color, color: "#0a0a0f" }}
+                >
                   {selected === e.stage ? "Cargando..." : "Empezar →"}
                 </div>
               )}
             </button>
           ))}
         </div>
-
       </div>
     </>
   );

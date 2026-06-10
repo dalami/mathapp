@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import { getMapRoute } from "../../lib/mapRoute";
 
 // ─── Tipos ────────────────────────────────────────────────────
 type Gateway = "mercadopago" | "paypal" | "detecting";
@@ -114,7 +115,7 @@ export default function TiendaPage() {
       <header className="sticky top-0 z-50 w-full px-4 py-3 bg-[rgba(10,10,15,0.97)] border-b border-white/[0.07] flex items-center gap-3">
         <button
           className="w-9 h-9 rounded-full bg-white/8 border border-white/12 text-white/60 flex items-center justify-center transition-colors duration-150 hover:bg-white/15"
-          onClick={() => router.push("/mapa")}
+         onClick={() => router.push(getMapRoute(profile?.stage))}
           aria-label="Volver"
         >
           ←

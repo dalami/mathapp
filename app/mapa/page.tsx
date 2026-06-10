@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { LivesPill } from "@/components/LivesBar";
 
+
 interface Island {
   id: number;
   name: string;

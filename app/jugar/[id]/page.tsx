@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { NoLivesModal, useRestoreLives } from "@/components/LivesBar";
 import { useSound } from "../../hooks/useSound";
+import { getMapRoute } from "../../../lib/mapRoute";
 
 interface LevelInfo {
   id: string;
@@ -59,10 +60,6 @@ function calcStars(totalErrors: number, totalQuestions: number): number {
   return 0;
 }
 
-function getMapRoute(stage: number | null | undefined): string {
-  if (stage === 2) return "/mapa2";
-  return "/mapa";
-}
 
 export default function JugarPage() {
   const router = useRouter();
