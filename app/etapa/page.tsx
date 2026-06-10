@@ -39,8 +39,8 @@ const ETAPAS = [
     color: "#FFA726",
     border: "#e65100",
     bg: "#2b1e0a",
-    disponible: false,
-    mapa: "/mapa",
+    disponible: true,
+    mapa: "/mapa3",
   },
   {
     stage: 4,
