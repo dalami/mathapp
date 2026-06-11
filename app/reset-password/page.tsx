@@ -94,18 +94,29 @@ function ResetPasswordForm() {
   const [done, setDone] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
 
-  // Supabase envía el token como fragment (#access_token=...) o como query param
-  // El SDK lo procesa automáticamente con onAuthStateChange
+  // PKCE: el token de recuperación llega como ?token_hash=...&type=recovery.
+  // Hay que canjearlo con verifyOtp para crear la sesión de recuperación.
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setSessionReady(true);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    const tokenHash = searchParams.get("token_hash");
+    const type = searchParams.get("type");
+
+   if (!tokenHash || type !== "recovery") {
+      Promise.resolve().then(() =>
+        setError("El link expiró o no es válido. Pedí uno nuevo."),
+      );
+      return;
+    }
+
+    supabase.auth
+      .verifyOtp({ type: "recovery", token_hash: tokenHash })
+      .then(({ error: verifyError }) => {
+        if (verifyError) {
+          setError("El link expiró o no es válido. Pedí uno nuevo.");
+        } else {
+          setSessionReady(true);
+        }
+      });
+  }, [searchParams]);
 
   // También revisamos si hay error en los params
   useEffect(() => {
