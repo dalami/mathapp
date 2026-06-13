@@ -87,8 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const fetchProfile = useCallback(async (userId: string) => {
+    console.log("FETCH PROFILE START", { userId });
     setProfileError(false);
     const data = await fetchProfileWithTimeout(userId);
+    console.log("FETCH PROFILE DONE", { data: !!data });
     if (data) {
       setProfile(data);
     } else {
@@ -148,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "TOKEN_REFRESHED") {
         if (session) setSession(session);
         authEventFiredRef.current = true;
+        console.log("AUTH CONTEXT SETLOADING FALSE", { event, uid: session?.user?.id });
         setLoading(false);
         return;
       }

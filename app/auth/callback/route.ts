@@ -10,6 +10,8 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") as EmailOtpType | null;
   const errorParam = searchParams.get("error");
 
+    console.log("CALLBACK", { code: !!code, errorParam, origin });
+
   if (errorParam || (!code && !(tokenHash && type))) {
     return NextResponse.redirect(`${origin}/auth?error=callback_failed`);
   }

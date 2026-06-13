@@ -116,9 +116,11 @@ function AuthForm() {
 
   useEffect(() => {
     const code = searchParams.get("code");
+     console.log("AUTH PAGE CODE EFFECT", { code: !!code });
     if (!code) return;
     window.history.replaceState({}, "", "/auth");
     supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+       console.log("EXCHANGE RESULT", { error: error?.message });
       if (error) {
         setError("El link expiró o no es válido. Intentá de nuevo.");
       }
