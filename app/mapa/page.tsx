@@ -6,7 +6,6 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { LivesPill } from "@/components/LivesBar";
 
-
 interface Island {
   id: number;
   name: string;
@@ -137,6 +136,7 @@ async function loadMapData(
     setLocalCoins,
   } = callbacks;
 
+  console.log("LOAD MAP START", { uid, stage });
   setLoading(true);
   setLoadError(false);
 
@@ -161,6 +161,11 @@ async function loadMapData(
       .eq("stage", stage)
       .order("order_index");
 
+    console.log("ISLANDS RES", {
+      data: islandsRes.data,
+      error: islandsRes.error,
+    });
+
     if (signal.aborted) return;
 
     const islandIds = (islandsRes.data ?? []).map((i) => i.id);
@@ -179,6 +184,15 @@ async function loadMapData(
         .select("level_id,stars")
         .eq("user_id", uid),
     ]);
+
+    console.log("LEVELS RES", {
+      data: levelsRes.data?.length,
+      error: levelsRes.error,
+    });
+    console.log("PROGRESS RES", {
+      data: progressRes.data?.length,
+      error: progressRes.error,
+    });
 
     if (signal.aborted) return;
 
@@ -217,6 +231,8 @@ async function loadMapData(
     setIslands((islandsRes.data ?? []) as Island[]);
     setLevels(processed);
 
+    console.log("LOAD MAP DONE", { islandsCount: islandsRes.data?.length });
+
     void (async () => {
       try {
         const { data } = await supabase
@@ -237,7 +253,6 @@ async function loadMapData(
     if (!signal.aborted) setLoading(false);
   }
 }
-
 export default function MapaPage() {
   const router = useRouter();
   const {
@@ -281,7 +296,7 @@ export default function MapaPage() {
     setLocalLivesResetAt,
     setLocalCoins,
   });
-  useEffect(() => {    // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {// eslint-disable-line react-hooks/exhaustive-deps
     callbacksRef.current = {
       setLoading,
       setLoadError,
@@ -295,7 +310,12 @@ export default function MapaPage() {
 
   // ─── Efecto principal: carga inicial ──────────────────────────
   useEffect(() => {
-     console.log("MAPA EFFECT", { authLoading, userId: user?.id, profileStage: profile?.stage, loadedFor: loadedForRef.current });
+    console.log("MAPA EFFECT", {
+      authLoading,
+      userId: user?.id,
+      profileStage: profile?.stage,
+      loadedFor: loadedForRef.current,
+    });
     if (authLoading) return;
 
     if (!user) {
@@ -329,7 +349,7 @@ export default function MapaPage() {
       controller.abort();
       //loadedForRef.current = null;
     };
-  }, [authLoading, user, profile, profileError, router]); 
+  }, [authLoading, user, profile, profileError, router]);
 
   // ─── Visibilidad: recarga silenciosa SIN tocar loadedForRef ───
   useEffect(() => {
@@ -356,7 +376,7 @@ export default function MapaPage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [user]); 
+  }, [user]);
   useEffect(() => {
     if (!loading) window.scrollTo({ top: 0, behavior: "instant" });
   }, [loading]);
