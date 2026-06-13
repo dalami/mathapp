@@ -295,6 +295,7 @@ export default function MapaPage() {
 
   // ─── Efecto principal: carga inicial ──────────────────────────
   useEffect(() => {
+     console.log("MAPA EFFECT", { authLoading, userId: user?.id, profileStage: profile?.stage, loadedFor: loadedForRef.current });
     if (authLoading) return;
 
     if (!user) {
