@@ -32,8 +32,15 @@ interface AuthContextType {
   profile: Profile | null;
   profileError: boolean;
   loading: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
+  signInWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -43,7 +50,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_TIMEOUT_MS = 8_000;
 
-async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
+async function fetchProfileWithTimeout(
+  userId: string,
+): Promise<Profile | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
   try {
@@ -100,7 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function init() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
         if (session?.user) {
           setSession(session);
@@ -126,7 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AUTH EVENT", event);
 
       // TOKEN_REFRESHED: solo actualizar la sesión, no refetchear el profile
@@ -181,11 +194,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     return { error: error?.message ?? null };
   };
 
-  const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+  const signUpWithEmail = async (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -199,14 +219,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-    const { error } = await supabase.auth.signInWithOAuth({
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo,
         queryParams: { prompt: "select_account" },
+        skipBrowserRedirect: true,
       },
     });
-    return { error: error?.message ?? null };
+
+    if (error) return { error: error.message };
+    if (data?.url) {
+      window.location.href = data.url;
+    }
+
+    return { error: null };
   };
 
   const signOut = async () => {
