@@ -250,7 +250,7 @@ async function loadMapData(
     console.error("loadMapData error:", e);
     setLoadError(true);
   } finally {
-    if (!signal.aborted) setLoading(false);
+    setLoading(false);
   }
 }
 export default function MapaPage() {
