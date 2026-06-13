@@ -50,30 +50,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_TIMEOUT_MS = 8_000;
 
-async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => {
-    console.log("FETCH PROFILE TIMEOUT FIRED");
-    controller.abort();
-  }, PROFILE_TIMEOUT_MS);
-  try {
-    console.log("FETCH PROFILE QUERY START");
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .abortSignal(controller.signal)
-      .single();
-    console.log("FETCH PROFILE QUERY DONE", { data: !!data, error: error?.message });
-    if (error || !data) return null;
-    return data as Profile;
-  } catch (e) {
-    console.log("FETCH PROFILE CATCH", { e });
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+async function fetchProfileWithTimeout(
+  userId: string,
+): Promise<Profile | null> {
+  const fetchPromise = Promise.resolve(
+    supabase.from("profiles").select("*").eq("id", userId).single(),
+  )
+    .then(({ data, error }) => {
+      if (error || !data) return null;
+      return data as Profile;
+    })
+    .catch(() => null);
+
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => {
+      console.log("FETCH PROFILE TIMEOUT FIRED");
+      resolve(null);
+    }, PROFILE_TIMEOUT_MS),
+  );
+
+  const result = await Promise.race([fetchPromise, timeoutPromise]);
+  console.log("FETCH PROFILE RACE DONE", { result: !!result });
+  return result;
 }
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -153,7 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "TOKEN_REFRESHED") {
         if (session) setSession(session);
         authEventFiredRef.current = true;
-        console.log("AUTH CONTEXT SETLOADING FALSE", { event, uid: session?.user?.id });
+        console.log("AUTH CONTEXT SETLOADING FALSE", {
+          event,
+          uid: session?.user?.id,
+        });
         setLoading(false);
         return;
       }
