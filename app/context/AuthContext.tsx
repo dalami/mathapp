@@ -50,27 +50,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_TIMEOUT_MS = 8_000;
 
-async function fetchProfileWithTimeout(
-  userId: string,
-): Promise<Profile | null> {
+async function fetchProfileWithTimeout(userId: string): Promise<Profile | null> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
+  const timer = setTimeout(() => {
+    console.log("FETCH PROFILE TIMEOUT FIRED");
+    controller.abort();
+  }, PROFILE_TIMEOUT_MS);
   try {
+    console.log("FETCH PROFILE QUERY START");
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .abortSignal(controller.signal)
       .single();
+    console.log("FETCH PROFILE QUERY DONE", { data: !!data, error: error?.message });
     if (error || !data) return null;
     return data as Profile;
-  } catch {
+  } catch (e) {
+    console.log("FETCH PROFILE CATCH", { e });
     return null;
   } finally {
     clearTimeout(timer);
   }
 }
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
