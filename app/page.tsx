@@ -59,8 +59,8 @@ const STAGES = [
     bg: "linear-gradient(135deg, #0a1f2e, #081520)",
     border: "#29B6F633",
     status: "available",
-    islands: 7,
-    levels: 70,
+    islands: 9,
+    levels: 135,
   },
   {
     icon: "🎯",
@@ -71,8 +71,8 @@ const STAGES = [
     bg: "linear-gradient(135deg, #2b1e0a, #1a1205)",
     border: "#FFA72633",
     status: "available",
-    islands: 6,
-    levels: 60,
+    islands: 9,
+    levels: 135,
   },
   {
     icon: "🏆",
@@ -83,8 +83,8 @@ const STAGES = [
     bg: "linear-gradient(135deg, #1a1205, #0f0c00)",
     border: "#FFD70033",
     status: "available",
-    islands: 8,
-    levels: 80,
+    islands: 12,
+    levels: 180,
   },
 ];
 
