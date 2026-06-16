@@ -136,7 +136,6 @@ async function loadMapData(
     setLocalCoins,
   } = callbacks;
 
-  console.log("LOAD MAP START", { uid, stage });
   setLoading(true);
   setLoadError(false);
 
@@ -185,15 +184,6 @@ async function loadMapData(
         .eq("user_id", uid),
     ]);
 
-    console.log("LEVELS RES", {
-      data: levelsRes.data?.length,
-      error: levelsRes.error,
-    });
-    console.log("PROGRESS RES", {
-      data: progressRes.data?.length,
-      error: progressRes.error,
-    });
-
     if (signal.aborted) return;
 
     const progressMap = new Map<string, number>(
@@ -230,8 +220,6 @@ async function loadMapData(
 
     setIslands((islandsRes.data ?? []) as Island[]);
     setLevels(processed);
-
-    console.log("LOAD MAP DONE", { islandsCount: islandsRes.data?.length });
 
     void (async () => {
       try {
@@ -310,12 +298,6 @@ export default function MapaPage() {
 
   // ─── Efecto principal: carga inicial ──────────────────────────
   useEffect(() => {
-    console.log("MAPA EFFECT", {
-      authLoading,
-      userId: user?.id,
-      profileStage: profile?.stage,
-      loadedFor: loadedForRef.current,
-    });
     if (authLoading) return;
 
     if (!user) {

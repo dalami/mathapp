@@ -63,15 +63,10 @@ async function fetchProfileWithTimeout(
     .catch(() => null);
 
   const timeoutPromise = new Promise<null>((resolve) =>
-    setTimeout(() => {
-      console.log("FETCH PROFILE TIMEOUT FIRED");
-      resolve(null);
-    }, PROFILE_TIMEOUT_MS),
+    setTimeout(() => resolve(null), PROFILE_TIMEOUT_MS),
   );
 
-  const result = await Promise.race([fetchPromise, timeoutPromise]);
-  console.log("FETCH PROFILE RACE DONE", { result: !!result });
-  return result;
+  return await Promise.race([fetchPromise, timeoutPromise]);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -90,10 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    console.log("FETCH PROFILE START", { userId });
     setProfileError(false);
     const data = await fetchProfileWithTimeout(userId);
-    console.log("FETCH PROFILE DONE", { data: !!data });
+
     if (data) {
       setProfile(data);
     } else {
@@ -145,18 +139,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("AUTH EVENT", event);
-
       // TOKEN_REFRESHED: solo actualizar la sesión, no refetchear el profile
       // El perfil no cambió — refetchearlo causa re-renders innecesarios
       // que hacen que el mapa se recargue al volver de otra pestaña
       if (event === "TOKEN_REFRESHED") {
         if (session) setSession(session);
         authEventFiredRef.current = true;
-        console.log("AUTH CONTEXT SETLOADING FALSE", {
-          event,
-          uid: session?.user?.id,
-        });
+
         setLoading(false);
         return;
       }
