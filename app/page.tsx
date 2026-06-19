@@ -175,7 +175,7 @@ export default function LandingPage() {
           rel="noopener noreferrer"
           className="px-4 py-2 rounded-full bg-[#FFD700] text-[#08080f] text-sm font-black transition-all duration-150 hover:scale-105 active:scale-95 shadow-[0_4px_0_rgba(180,120,0,0.5)]"
         >
-          📲 Descargar app
+          📲 Descargar app<br /><span className="text-[0.7em] font-bold opacity-70">(Solo Android)</span>
         </a>
       </nav>
 
@@ -207,7 +207,7 @@ export default function LandingPage() {
             className="px-8 py-4 rounded-2xl font-black text-[#08080f] text-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(255,215,0,0.4)] active:translate-y-0 shadow-[0_6px_0_rgba(180,120,0,0.5)]"
             style={{ background: "linear-gradient(135deg, #FFD700, #FF8C00)" }}
           >
-            📲 Descargar app
+            📲 Descargar app<br /><span className="text-[0.7em] font-bold opacity-70">(Solo Android)</span>
           </a>
           <button
             className="px-6 py-4 rounded-2xl font-bold text-white/50 text-sm border border-white/10 hover:border-white/25 hover:text-white transition-all duration-200"
@@ -368,7 +368,7 @@ export default function LandingPage() {
                       background: `linear-gradient(135deg, ${stage.color}, ${stage.color}cc)`,
                     }}
                   >
-                    📲 Descargar
+                    📲 Descargar<br /><span className="text-[0.7em] font-bold opacity-70">(Solo Android)</span>
                   </a>
                 </div>
               )}
@@ -435,7 +435,7 @@ export default function LandingPage() {
                 background: "linear-gradient(135deg, #FFD700, #FF8C00)",
               }}
             >
-              📲 Descargar app ahora
+              📲 Descargar app ahora<br /><span className="text-[0.7em] font-bold opacity-70">(Solo Android)</span>
             </a>
           </div>
         </div>
