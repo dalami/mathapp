@@ -15,15 +15,14 @@ function ConfirmarContent() {
 
   useEffect(() => {
     const token_hash = searchParams.get("token_hash");
-    const type = searchParams.get("type");
 
-    if (!token_hash || !type) {
+    if (!token_hash) {
       setStatus("error");
       return;
     }
 
     supabase.auth
-      .verifyOtp({ token_hash, type: type as "signup" | "email" | "recovery" })
+      .verifyOtp({ token_hash, type: "email" })
       .then(({ error }) => {
         if (error) {
           setStatus("error");
