@@ -4,26 +4,8 @@ import { useEffect, useState } from "react";
 
 // ─── Números flotantes de fondo ───────────────────────────────
 const FLOAT_ITEMS = [
-  "1",
-  "2",
-  "3",
-  "+",
-  "×",
-  "7",
-  "π",
-  "∞",
-  "=",
-  "9",
-  "÷",
-  "5",
-  "√",
-  "8",
-  "−",
-  "4",
-  "∑",
-  "6",
-  "%",
-  "0",
+  "1", "2", "3", "+", "×", "7", "π", "∞", "=", "9", "÷", "5",
+  "√", "8", "−", "4", "∑", "6", "%", "0",
 ];
 
 const FLOATERS = Array.from({ length: 28 }, (_, i) => ({
@@ -35,6 +17,8 @@ const FLOATERS = Array.from({ length: 28 }, (_, i) => ({
   duration: 6 + (i % 5) * 2,
   opacity: 0.04 + (i % 4) * 0.025,
 }));
+
+const PLAY_STORE = "https://play.google.com/apps/internaltest/4701392344833701397";
 
 // ─── Etapas ───────────────────────────────────────────────────
 const STAGES = [
@@ -149,29 +133,6 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
 
 // ─── Página ───────────────────────────────────────────────────
 export default function LandingPage() {
-  //const router = useRouter();
-
-  const [installable, setInstallable] = useState(false);
-
-  useEffect(() => {
-    const onReady = () => setInstallable(true);
-    const onInstalled = () => setInstallable(false);
-    window.addEventListener("pwaInstallReady", onReady);
-    window.addEventListener("pwaInstalled", onInstalled);
-    return () => {
-      window.removeEventListener("pwaInstallReady", onReady);
-      window.removeEventListener("pwaInstalled", onInstalled);
-    };
-  }, []);
-
-  async function handleInstall() {
-    const { deferredInstallPrompt } = await import("@/components/PWARegister");
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    if (outcome === "accepted") setInstallable(false);
-  }
-
   return (
     <div className="min-h-fit bg-[#08080f] text-white overflow-x-hidden font-[Nunito,sans-serif] selection:bg-[#FFD700] selection:text-[#08080f]">
       {/* ── FONDO ANIMADO ── */}
@@ -207,17 +168,15 @@ export default function LandingPage() {
           <a href="#etapas" className="hover:text-white transition-colors">
             Etapas
           </a>
-
-          <a href="#pricing" className="hover:text-white transition-colors">
-            Planes
-          </a>
         </div>
-        <button
+        <a
+          href={PLAY_STORE}
+          target="_blank"
+          rel="noopener noreferrer"
           className="px-4 py-2 rounded-full bg-[#FFD700] text-[#08080f] text-sm font-black transition-all duration-150 hover:scale-105 active:scale-95 shadow-[0_4px_0_rgba(180,120,0,0.5)]"
-          onClick={() => (window.location.href = "/auth")}
         >
-          Jugar gratis →
-        </button>
+          📲 Descargar app
+        </a>
       </nav>
 
       {/* ── HERO ── */}
@@ -241,21 +200,15 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 animate-[fadeDown_0.9s_ease_both]">
-          <button
+          <a
+            href={PLAY_STORE}
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-8 py-4 rounded-2xl font-black text-[#08080f] text-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(255,215,0,0.4)] active:translate-y-0 shadow-[0_6px_0_rgba(180,120,0,0.5)]"
             style={{ background: "linear-gradient(135deg, #FFD700, #FF8C00)" }}
-            onClick={() => (window.location.href = "/auth")}
           >
-            🚀 Empezar gratis
-          </button>
-          {installable && (
-            <button
-              className="px-6 py-4 rounded-2xl font-bold text-white text-sm border border-[#FFD700]/30 bg-[#FFD700]/8 hover:bg-[#FFD700]/15 transition-all duration-200 flex items-center gap-2"
-              onClick={handleInstall}
-            >
-              📲 Instalar app
-            </button>
-          )}
+            📲 Descargar app
+          </a>
           <button
             className="px-6 py-4 rounded-2xl font-bold text-white/50 text-sm border border-white/10 hover:border-white/25 hover:text-white transition-all duration-200"
             onClick={() =>
@@ -406,15 +359,17 @@ export default function LandingPage() {
 
               {stage.status === "available" && (
                 <div className="px-5 pb-4">
-                  <button
-                    className="w-full py-2.5 rounded-2xl font-extrabold text-[#08080f] text-sm transition-all duration-150 hover:-translate-y-0.5 shadow-[0_3px_0_rgba(0,0,0,0.3)]"
+                  <a
+                    href={PLAY_STORE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-2.5 rounded-2xl font-extrabold text-[#08080f] text-sm text-center transition-all duration-150 hover:-translate-y-0.5 shadow-[0_3px_0_rgba(0,0,0,0.3)]"
                     style={{
                       background: `linear-gradient(135deg, ${stage.color}, ${stage.color}cc)`,
                     }}
-                    onClick={() => (window.location.href = "/auth")}
                   >
-                    Jugar ahora 🚀
-                  </button>
+                    📲 Descargar
+                  </a>
                 </div>
               )}
             </div>
@@ -453,103 +408,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section id="pricing" className="relative z-10 px-5 py-16 bg-white/1.5">
-        <div className="text-center mb-10">
-          <div className="text-[0.7rem] font-extrabold text-[#FFD700]/60 tracking-widest uppercase mb-2">
-            Planes
-          </div>
-          <h2 className="font-[FredokaOne,sans-serif] text-[clamp(1.8rem,6vw,2.8rem)]">
-            Empezá gratis,
-            <br />
-            crecé sin límites
-          </h2>
-        </div>
-
-        <div className="flex flex-col gap-4 max-w-sm mx-auto">
-          <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
-            <div className="font-[FredokaOne,sans-serif] text-xl mb-1">
-              Gratis
-            </div>
-            <div className="font-[FredokaOne,sans-serif] text-4xl text-white mb-4">
-              $0
-            </div>
-            <ul className="flex flex-col gap-2 mb-5">
-              {[
-                "5 vidas por sesión",
-                "Acceso a Exploradores",
-                "Sistema de monedas",
-                "Racha diaria",
-              ].map((f) => (
-                <li
-                  key={f}
-                  className="flex items-center gap-2 text-sm font-bold text-white/50"
-                >
-                  <span className="text-white/25 text-xs">✓</span> {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              className="w-full py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white/50 font-extrabold text-sm hover:bg-white/10 transition-colors"
-              onClick={() => (window.location.href = "/auth")}
-            >
-              Empezar gratis
-            </button>
-          </div>
-
-          <div
-            className="relative rounded-3xl p-6 border overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, #1a0a2e, #0a1a2e)",
-              borderColor: "rgba(255,215,0,0.3)",
-            }}
-          >
-            <div className="absolute top-4 right-4 bg-[#FFD700] text-[#08080f] text-[0.6rem] font-black px-2.5 py-1 rounded-full tracking-wide">
-              MÁS POPULAR
-            </div>
-            <div className="font-[FredokaOne,sans-serif] text-xl text-[#FFD700] mb-1">
-              Pro
-            </div>
-            <div className="flex items-end gap-1 mb-1">
-              <span className="font-[FredokaOne,sans-serif] text-4xl text-white">
-                $0.99
-              </span>
-              <span className="text-white/35 text-sm font-bold mb-1">
-                USD/mes
-              </span>
-            </div>
-            <div className="text-white/25 text-xs font-bold mb-4">
-              Cancelá cuando quieras
-            </div>
-            <ul className="flex flex-col gap-2 mb-5">
-              {[
-                "❤️ Vidas infinitas",
-                "🚫 Sin publicidad",
-                "🏝️ Acceso a todas las etapas",
-                "🚀 Acceso anticipado a Aventureros",
-                "👑 Soporte prioritario",
-              ].map((f) => (
-                <li
-                  key={f}
-                  className="flex items-center gap-2 text-sm font-bold text-white/80"
-                >
-                  <span className="text-[#FFD700] text-xs">✓</span> {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              className="w-full py-3.5 rounded-2xl font-black text-[#08080f] text-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(255,215,0,0.35)] shadow-[0_4px_0_rgba(180,120,0,0.4)]"
-              style={{
-                background: "linear-gradient(135deg, #FFD700, #FF8C00)",
-              }}
-              onClick={() => (window.location.href = "/tienda")}
-            >
-              Obtener Pro 👑
-            </button>
-          </div>
-        </div>
-      </section>
-
       {/* ── CTA FINAL ── */}
       <section className="relative z-10 px-5 py-20 text-center">
         <div className="relative max-w-sm mx-auto">
@@ -568,15 +426,17 @@ export default function LandingPage() {
               <br />
               Empezá hoy, gratis, sin excusas.
             </p>
-            <button
-              className="px-10 py-4 rounded-2xl font-black text-[#08080f] text-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(255,215,0,0.45)] shadow-[0_6px_0_rgba(180,120,0,0.5)]"
+            <a
+              href={PLAY_STORE}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-10 py-4 rounded-2xl font-black text-[#08080f] text-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(255,215,0,0.45)] shadow-[0_6px_0_rgba(180,120,0,0.5)]"
               style={{
                 background: "linear-gradient(135deg, #FFD700, #FF8C00)",
               }}
-              onClick={() => (window.location.href = "/auth")}
             >
-              🚀 Jugar gratis ahora
-            </button>
+              📲 Descargar app ahora
+            </a>
           </div>
         </div>
       </section>
