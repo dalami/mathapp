@@ -148,9 +148,9 @@ export default function PrivacidadPage() {
         </h2>
         <p style={pStyle}>
           MathApp es una aplicación educativa de matemática gamificada, pensada
-          para que estudiantes de nivel primario practiquen y aprendan jugando.
-          La aplicación está disponible para dispositivos Android a través de
-          Google Play.
+          para que estudiantes de todas las edades, desde nivel primario hasta
+          universitario, practiquen y aprendan jugando. La aplicación está
+          disponible para dispositivos Android a través de Google Play.
         </p>
         <p style={pStyle}>
           El responsable del tratamiento de los datos es el equipo de MathApp,
@@ -335,6 +335,14 @@ export default function PrivacidadPage() {
             Si sos padre, madre o tutor y querés revisar, modificar o eliminar
             la información asociada a la cuenta de un menor, escribinos al
             correo de contacto que figura más abajo y atenderemos tu solicitud.
+            MathApp cumple con la Ley de Protección de la Privacidad Infantil en
+            Internet (COPPA) de los EE.UU. y con el Reglamento General de
+            Protección de Datos (GDPR) de la Unión Europea en lo que respecta al
+            tratamiento de datos de menores. No recopilamos intencionalmente
+            datos personales de menores de 13 años sin el consentimiento
+            verificable de sus padres o tutores. Si tomamos conocimiento de que
+            hemos recopilado datos de un menor sin dicho consentimiento, los
+            eliminaremos a la brevedad.
           </p>
         </div>
 
